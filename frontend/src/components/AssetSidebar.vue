@@ -31,13 +31,38 @@
         class="mb-2"
       />
       <v-select
+        v-model="store.filterSuperCategory"
+        :items="superCategoryOptions"
+        item-title="label"
+        item-value="value"
+        density="compact"
+        variant="outlined"
+        placeholder="Tipo de activo"
+        clearable
+        hide-details
+        class="mb-2"
+        @update:model-value="store.filterCategory = null"
+      >
+        <template #item="{ props, item }">
+          <v-list-item v-bind="props">
+            <template #prepend>
+              <v-icon :color="item.raw.color" size="16" class="mr-1">{{ item.raw.icon }}</v-icon>
+            </template>
+          </v-list-item>
+        </template>
+        <template #selection="{ item }">
+          <v-icon :color="item.raw.color" size="14" class="mr-1">{{ item.raw.icon }}</v-icon>
+          {{ item.raw.label }}
+        </template>
+      </v-select>
+      <v-select
         v-model="store.filterCategory"
         :items="categoryOptions"
         item-title="label"
         item-value="value"
         density="compact"
         variant="outlined"
-        placeholder="Categoría"
+        placeholder="Subcategoría"
         clearable
         hide-details
         class="mb-2"
@@ -139,9 +164,13 @@
     </v-list>
 
     <!-- Footer actions -->
-    <div class="pa-3 sidebar-footer d-flex ga-2">
-      <v-btn size="small" variant="tonal" color="primary" prepend-icon="mdi-download" @click="exportCSV"> CSV </v-btn>
-      <v-spacer />
+    <div class="pa-3 sidebar-footer d-flex flex-column ga-2">
+      <div class="d-flex ga-2">
+        <v-btn size="small" variant="tonal" color="primary" prepend-icon="mdi-download" @click="exportCSV"> CSV </v-btn>
+        <v-btn size="small" variant="tonal" color="success" prepend-icon="mdi-microsoft-excel" @click="exportExcel">
+          Excel
+        </v-btn>
+      </div>
       <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-arrow-left" @click="backToSearch">
         Nueva búsqueda
       </v-btn>
@@ -151,9 +180,14 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import * as XLSX from 'xlsx';
 import { useAppStore } from '@/stores/store';
 import type { Asset } from '@/types/types';
-import { AssetCategory, CATEGORY_LABELS, CATEGORY_ICONS, CATEGORY_COLORS } from '@/types/types';
+import {
+  AssetCategory, CATEGORY_LABELS, CATEGORY_ICONS, CATEGORY_COLORS,
+  AssetSuperCategory, SUPER_CATEGORY_LABELS, SUPER_CATEGORY_ICONS, SUPER_CATEGORY_COLORS,
+  SUPER_TO_CATEGORIES, CATEGORY_TO_SUPER,
+} from '@/types/types';
 
 const store = useAppStore();
 const searchText = ref('');
@@ -162,9 +196,21 @@ const emit = defineEmits<{
   (e: 'select-asset', asset: Asset): void;
 }>();
 
+const superCategoryOptions = computed(() => {
+  return Object.values(AssetSuperCategory)
+    .filter((sc) => store.superCategoryCounts[sc])
+    .map((sc) => ({
+      value: sc,
+      label: `${SUPER_CATEGORY_LABELS[sc]} (${store.superCategoryCounts[sc] || 0})`,
+      icon: SUPER_CATEGORY_ICONS[sc],
+      color: SUPER_CATEGORY_COLORS[sc],
+    }));
+});
+
 const categoryOptions = computed(() => {
-  const cats = Object.values(AssetCategory);
-  return cats
+  const activeSuperCat = store.filterSuperCategory as AssetSuperCategory | null;
+  const allowed = activeSuperCat ? SUPER_TO_CATEGORIES[activeSuperCat] : Object.values(AssetCategory);
+  return allowed
     .filter((c) => store.categoryCounts[c])
     .map((c) => ({
       value: c,
@@ -199,11 +245,15 @@ const onAssetClick = (asset: Asset) => {
   emit('select-asset', asset);
 };
 
+const getSuperCategoryLabel = (cat: AssetCategory) =>
+  SUPER_CATEGORY_LABELS[CATEGORY_TO_SUPER[cat]] ?? ''
+
 const exportCSV = () => {
-  const rows = [['Nombre', 'Categoría', 'Dirección', 'Municipio', 'Provincia', 'Confianza', 'Lat', 'Lon']];
+  const rows = [['Nombre', 'Tipo', 'Categoría', 'Dirección', 'Municipio', 'Provincia', 'Confianza', 'Lat', 'Lon']];
   for (const a of store.filteredAssets) {
     rows.push([
       a.name,
+      getSuperCategoryLabel(a.category),
       a.category,
       a.address,
       a.municipality,
@@ -213,14 +263,32 @@ const exportCSV = () => {
       String(a.longitude),
     ]);
   }
-  const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
+  const csv = rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = `${store.selectedCompany?.name || 'assets'}_geoassets.csv`;
   a.click();
   URL.revokeObjectURL(url);
+};
+
+const exportExcel = () => {
+  const rows = store.filteredAssets.map((a) => ({
+    Nombre: a.name,
+    Tipo: getSuperCategoryLabel(a.category),
+    Categoría: a.category,
+    Dirección: a.address,
+    Municipio: a.municipality,
+    Provincia: a.province,
+    Confianza: a.confidence_score,
+    Lat: a.latitude,
+    Lon: a.longitude,
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Activos');
+  XLSX.writeFile(wb, `${store.selectedCompany?.name || 'assets'}_geoassets.xlsx`);
 };
 
 const backToSearch = () => {

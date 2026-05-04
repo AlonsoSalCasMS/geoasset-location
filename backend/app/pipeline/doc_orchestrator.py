@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import AsyncGenerator
 
-from app.pipeline.models import Asset, CompanyInfo, DocumentScoredAsset
+from app.pipeline.models import Asset, CompanyInfo, DocumentScoredAsset, CATEGORY_TO_SUPER
 from app.pipeline.orchestrator import _persist_assets
 from app.pipeline.steps.doc_step0_parse import parse_uploaded_document
 from app.pipeline.steps.doc_step1_chunk import chunk_document
@@ -24,6 +24,7 @@ def _doc_scored_to_asset(s: DocumentScoredAsset, company_id: str) -> Asset:
         company_id=company_id,
         name=s.name,
         raw_name=s.raw_name,
+        super_category=CATEGORY_TO_SUPER.get(s.category, "OTR"),
         category=s.category,
         latitude=s.latitude,
         longitude=s.longitude,
@@ -39,6 +40,7 @@ def _doc_scored_to_asset(s: DocumentScoredAsset, company_id: str) -> Asset:
         google_place_id=s.place_id,
         confidence_score=s.confidence_score,
         confidence_tier=s.confidence_tier,
+        confidence_signals=s.confidence_signals,
         data_sources=s.data_sources,
         website=s.website,
         phone=s.phone,

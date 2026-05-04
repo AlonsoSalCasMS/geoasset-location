@@ -73,7 +73,7 @@ def _confidence_tier(score: float) -> str:
     return "LOW"
 
 
-def _compute_confidence(asset: DocumentEnrichedAsset) -> float:
+def _compute_confidence(asset: DocumentEnrichedAsset) -> tuple[float, dict]:
     signals = {
         "evidence_strength": _evidence_strength(asset),
         "address_specificity": _address_specificity(asset),
@@ -85,7 +85,7 @@ def _compute_confidence(asset: DocumentEnrichedAsset) -> float:
     raw = sum(SIGNALS_WEIGHTS_DOC[key] * signals[key] for key in SIGNALS_WEIGHTS_DOC)
     alpha = 1 + raw * 10
     beta_param = 1 + (1 - raw) * 10
-    return round(beta_dist.mean(alpha, beta_param), 3)
+    return round(beta_dist.mean(alpha, beta_param), 3), {k: round(v, 3) for k, v in signals.items()}
 
 
 async def score_document_assets(
@@ -100,12 +100,13 @@ async def score_document_assets(
         else ["document_upload", "llm_inference"]
     )
     for asset in assets:
-        score = _compute_confidence(asset)
+        score, signals = _compute_confidence(asset)
         scored.append(
             DocumentScoredAsset(
                 **asset.model_dump(),
                 confidence_score=score,
                 confidence_tier=_confidence_tier(score),
+                confidence_signals=signals,
                 data_sources=data_sources,
             )
         )

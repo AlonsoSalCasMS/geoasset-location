@@ -11,6 +11,40 @@ export interface Company {
   headquarters?: string
 }
 
+// ── Supercategory (nivel superior de clasificación) ─────────────
+export enum AssetSuperCategory {
+  CORP  = 'CORP',
+  OPS   = 'OPS',
+  COM   = 'COM',
+  INFRA = 'INFRA',
+  OTR   = 'OTR',
+}
+
+export const SUPER_CATEGORY_LABELS: Record<AssetSuperCategory, string> = {
+  [AssetSuperCategory.CORP]:  'Corporativo',
+  [AssetSuperCategory.OPS]:   'Operaciones',
+  [AssetSuperCategory.COM]:   'Comercial / Servicios',
+  [AssetSuperCategory.INFRA]: 'Infraestructura',
+  [AssetSuperCategory.OTR]:   'Otro',
+}
+
+export const SUPER_CATEGORY_ICONS: Record<AssetSuperCategory, string> = {
+  [AssetSuperCategory.CORP]:  'mdi-office-building-outline',
+  [AssetSuperCategory.OPS]:   'mdi-cogs',
+  [AssetSuperCategory.COM]:   'mdi-shopping-outline',
+  [AssetSuperCategory.INFRA]: 'mdi-transmission-tower',
+  [AssetSuperCategory.OTR]:   'mdi-map-marker-outline',
+}
+
+export const SUPER_CATEGORY_COLORS: Record<AssetSuperCategory, string> = {
+  [AssetSuperCategory.CORP]:  '#1565C0',
+  [AssetSuperCategory.OPS]:   '#E65100',
+  [AssetSuperCategory.COM]:   '#2E7D32',
+  [AssetSuperCategory.INFRA]: '#546E7A',
+  [AssetSuperCategory.OTR]:   '#757575',
+}
+
+// ── Subcategory (clasificación detallada existente) ─────────────
 export enum AssetCategory {
   HQ = 'HQ',
   OFF = 'OFF',
@@ -71,11 +105,36 @@ export const CATEGORY_COLORS: Record<AssetCategory, string> = {
   [AssetCategory.OTR]: '#9E9E9E',
 }
 
+// ── Mapping between the two levels ─────────────────────────────
+export const CATEGORY_TO_SUPER: Record<AssetCategory, AssetSuperCategory> = {
+  [AssetCategory.HQ]:  AssetSuperCategory.CORP,
+  [AssetCategory.OFF]: AssetSuperCategory.CORP,
+  [AssetCategory.TEC]: AssetSuperCategory.CORP,
+  [AssetCategory.FAB]: AssetSuperCategory.OPS,
+  [AssetCategory.LOG]: AssetSuperCategory.OPS,
+  [AssetCategory.AGR]: AssetSuperCategory.OPS,
+  [AssetCategory.COM]: AssetSuperCategory.COM,
+  [AssetCategory.HOT]: AssetSuperCategory.COM,
+  [AssetCategory.SAN]: AssetSuperCategory.COM,
+  [AssetCategory.ENE]: AssetSuperCategory.INFRA,
+  [AssetCategory.TRA]: AssetSuperCategory.INFRA,
+  [AssetCategory.OTR]: AssetSuperCategory.OTR,
+}
+
+export const SUPER_TO_CATEGORIES: Record<AssetSuperCategory, AssetCategory[]> = {
+  [AssetSuperCategory.CORP]:  [AssetCategory.HQ, AssetCategory.OFF, AssetCategory.TEC],
+  [AssetSuperCategory.OPS]:   [AssetCategory.FAB, AssetCategory.LOG, AssetCategory.AGR],
+  [AssetSuperCategory.COM]:   [AssetCategory.COM, AssetCategory.HOT, AssetCategory.SAN],
+  [AssetSuperCategory.INFRA]: [AssetCategory.ENE, AssetCategory.TRA],
+  [AssetSuperCategory.OTR]:   [AssetCategory.OTR],
+}
+
 export interface Asset {
   id: string
   company_id: string
   name: string
   raw_name: string
+  super_category?: AssetSuperCategory
   category: AssetCategory
   subcategory?: string
   latitude: number
@@ -92,6 +151,7 @@ export interface Asset {
   google_place_id: string
   confidence_score: number
   confidence_tier: string
+  confidence_signals?: Record<string, number>
   data_sources: string[]
   website?: string
   phone?: string

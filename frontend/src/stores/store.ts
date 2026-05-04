@@ -9,6 +9,7 @@ import type {
   AgentFile,
   AgentEvent,
 } from '@/types/types';
+import { CATEGORY_TO_SUPER, SUPER_TO_CATEGORIES } from '@/types/types';
 
 export interface AppState {
   currentView: AppView;
@@ -18,6 +19,7 @@ export interface AppState {
   pipelineSteps: PipelineStep[];
   isLoading: boolean;
   searchQuery: string;
+  filterSuperCategory: string | null;
   filterCategory: string | null;
   filterMinConfidence: number;
   clusteringEnabled: boolean;
@@ -41,6 +43,7 @@ export const useAppStore = defineStore('app', {
     pipelineSteps: [],
     isLoading: false,
     searchQuery: '',
+    filterSuperCategory: null,
     filterCategory: null,
     filterMinConfidence: 0,
     clusteringEnabled: true,
@@ -56,6 +59,10 @@ export const useAppStore = defineStore('app', {
   getters: {
     filteredAssets(state): Asset[] {
       let result = state.assets;
+      if (state.filterSuperCategory) {
+        const allowed = SUPER_TO_CATEGORIES[state.filterSuperCategory as keyof typeof SUPER_TO_CATEGORIES] ?? [];
+        result = result.filter((a) => allowed.includes(a.category as never));
+      }
       if (state.filterCategory) {
         result = result.filter((a) => a.category === state.filterCategory);
       }
@@ -66,6 +73,14 @@ export const useAppStore = defineStore('app', {
         result = result.filter((a) => a.data_sources?.includes(state.filterSource!));
       }
       return result;
+    },
+    superCategoryCounts(state): Record<string, number> {
+      const counts: Record<string, number> = {};
+      for (const a of state.assets) {
+        const sc = CATEGORY_TO_SUPER[a.category as keyof typeof CATEGORY_TO_SUPER];
+        if (sc) counts[sc] = (counts[sc] || 0) + 1;
+      }
+      return counts;
     },
     sourceCounts(state): Record<string, number> {
       const counts: Record<string, number> = {};
@@ -132,6 +147,7 @@ export const useAppStore = defineStore('app', {
       this.metadata = null;
       this.pipelineSteps = [];
       this.selectedAssetId = null;
+      this.filterSuperCategory = null;
       this.filterCategory = null;
       this.filterMinConfidence = 0;
       this.filterSource = null;

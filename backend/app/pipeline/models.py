@@ -5,6 +5,14 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class AssetSuperCategory(str, Enum):
+    CORP  = "CORP"
+    OPS   = "OPS"
+    COM   = "COM"
+    INFRA = "INFRA"
+    OTR   = "OTR"
+
+
 class AssetCategory(str, Enum):
     HQ = "HQ"
     OFF = "OFF"
@@ -18,6 +26,22 @@ class AssetCategory(str, Enum):
     HOT = "HOT"
     SAN = "SAN"
     OTR = "OTR"
+
+
+CATEGORY_TO_SUPER: dict[AssetCategory, AssetSuperCategory] = {
+    AssetCategory.HQ:  AssetSuperCategory.CORP,
+    AssetCategory.OFF: AssetSuperCategory.CORP,
+    AssetCategory.TEC: AssetSuperCategory.CORP,
+    AssetCategory.FAB: AssetSuperCategory.OPS,
+    AssetCategory.LOG: AssetSuperCategory.OPS,
+    AssetCategory.AGR: AssetSuperCategory.OPS,
+    AssetCategory.COM: AssetSuperCategory.COM,
+    AssetCategory.HOT: AssetSuperCategory.COM,
+    AssetCategory.SAN: AssetSuperCategory.COM,
+    AssetCategory.ENE: AssetSuperCategory.INFRA,
+    AssetCategory.TRA: AssetSuperCategory.INFRA,
+    AssetCategory.OTR: AssetSuperCategory.OTR,
+}
 
 
 CATEGORY_LABELS = {
@@ -106,6 +130,7 @@ class EnrichedAsset(FilteredAsset):
 class ScoredAsset(EnrichedAsset):
     confidence_score: float = 0.0
     confidence_tier: str = "LOW"
+    confidence_signals: dict = Field(default_factory=dict)
     data_sources: List[str] = Field(default_factory=lambda: ["maps_api", "llm_inference"])
 
 
@@ -114,6 +139,7 @@ class Asset(BaseModel):
     company_id: str
     name: str
     raw_name: str
+    super_category: Optional[str] = None
     category: AssetCategory
     subcategory: Optional[str] = None
     latitude: float
@@ -130,6 +156,7 @@ class Asset(BaseModel):
     google_place_id: str
     confidence_score: float = 0.0
     confidence_tier: str = "LOW"
+    confidence_signals: dict = Field(default_factory=dict)
     data_sources: List[str] = Field(default_factory=list)
     website: Optional[str] = None
     phone: Optional[str] = None
@@ -187,6 +214,7 @@ class DocumentEnrichedAsset(DocumentExtractedAsset):
 class DocumentScoredAsset(DocumentEnrichedAsset):
     confidence_score: float = 0.0
     confidence_tier: str = "LOW"
+    confidence_signals: dict = Field(default_factory=dict)
     data_sources: List[str] = Field(default_factory=lambda: ["document_upload", "llm_inference"])
 
 

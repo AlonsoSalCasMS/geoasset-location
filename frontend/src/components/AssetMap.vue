@@ -1,12 +1,126 @@
 <template>
-  <div ref="mapContainer" class="map-container" style="width: 100%; height: 100%"></div>
+  <div style="width: 100%; height: 100%; position: relative">
+    <div ref="mapContainer" class="map-container" style="width: 100%; height: 100%"></div>
+
+    <!-- Legend + color-mode toggle overlay -->
+    <div class="legend-overlay">
+      <v-btn-toggle
+        v-model="colorMode"
+        density="compact"
+        variant="outlined"
+        color="primary"
+        class="legend-toggle mb-2"
+        mandatory
+      >
+        <v-btn value="source" size="x-small" class="legend-toggle-btn">
+          <v-icon size="11" class="mr-1">mdi-database-outline</v-icon>
+          Fuente
+        </v-btn>
+        <v-btn value="superCategory" size="x-small" class="legend-toggle-btn">
+          <v-icon size="11" class="mr-1">mdi-shape-outline</v-icon>
+          Tipo
+        </v-btn>
+      </v-btn-toggle>
+
+      <div class="legend-divider" />
+
+      <div v-for="item in legendItems" :key="item.key" class="legend-row">
+        <span class="legend-dot" :style="{ background: item.color }" />
+        <span class="legend-label">{{ item.label }}</span>
+        <span class="legend-count">{{ item.count }}</span>
+      </div>
+    </div>
+
+    <!-- Confidence detail dialog — lives outside Leaflet DOM -->
+    <v-dialog v-model="showConfidenceDetail" max-width="420">
+      <v-card v-if="detailAsset" rounded="lg">
+        <v-card-title class="d-flex align-center pa-4 pb-2">
+          <v-icon class="mr-2" :color="detailTierColor">mdi-shield-check</v-icon>
+          Detalle de confianza
+          <v-spacer />
+          <v-btn icon size="small" variant="text" @click="showConfidenceDetail = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+
+        <v-card-text class="pa-4 pt-0">
+          <!-- Score summary -->
+          <div class="score-summary d-flex align-center mb-4 pa-3 rounded-lg">
+            <div>
+              <div class="text-caption text-grey-darken-1">Score final</div>
+              <div class="text-h5 font-weight-bold" :style="{ color: detailTierColor }">
+                {{ (detailAsset.confidence_score * 100).toFixed(0) }}%
+              </div>
+            </div>
+            <v-spacer />
+            <v-chip :color="detailTierColor" variant="tonal" size="small">
+              {{ detailTierLabel }}
+            </v-chip>
+          </div>
+
+          <!-- Pipeline source -->
+          <div class="text-caption text-grey-darken-1 mb-1">Fuente del análisis</div>
+          <div class="d-flex ga-1 mb-4 flex-wrap">
+            <v-chip
+              v-for="src in detailAsset.data_sources"
+              :key="src"
+              size="x-small"
+              variant="outlined"
+              :color="detailSourceColor(src)"
+            >
+              <v-icon start size="10">{{ detailSourceIcon(src) }}</v-icon>
+              {{ detailSourceLabel(src) }}
+            </v-chip>
+          </div>
+
+          <!-- Signals breakdown -->
+          <div v-if="detailSignalRows.length" class="mb-3">
+            <div class="text-caption text-grey-darken-1 mb-2">Señales utilizadas</div>
+            <div v-for="row in detailSignalRows" :key="row.key" class="mb-2">
+              <div class="d-flex justify-space-between align-center mb-1">
+                <div class="d-flex align-center">
+                  <span class="text-caption font-weight-medium">{{ row.label }}</span>
+                  <v-chip size="x-small" variant="tonal" color="grey" class="ml-1">
+                    {{ (row.weight * 100).toFixed(0) }}%
+                  </v-chip>
+                </div>
+                <span class="text-caption font-weight-bold" :style="{ color: signalColor(row.value) }">
+                  {{ (row.value * 100).toFixed(0) }}%
+                </span>
+              </div>
+              <v-progress-linear
+                :model-value="row.value * 100"
+                :color="signalColor(row.value)"
+                height="5"
+                rounded
+                bg-color="grey-lighten-3"
+              />
+            </div>
+          </div>
+
+          <v-alert v-else type="info" variant="tonal" density="compact" class="text-caption">
+            Detalle de señales no disponible para activos cargados desde caché.
+          </v-alert>
+
+          <div class="text-caption text-grey mt-3">
+            <v-icon size="12" class="mr-1">mdi-information</v-icon>
+            El score se suaviza con una distribución Beta para evitar valores extremos artificiales.
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAppStore } from '@/stores/store';
 import type { Asset } from '@/types/types';
-import { AssetCategory, CATEGORY_COLORS, CATEGORY_LABELS } from '@/types/types';
+import {
+  AssetCategory, CATEGORY_COLORS, CATEGORY_LABELS,
+  AssetSuperCategory, SUPER_CATEGORY_COLORS, SUPER_CATEGORY_LABELS,
+  CATEGORY_TO_SUPER,
+} from '@/types/types';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
@@ -15,10 +129,69 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 const store = useAppStore();
 const mapContainer = ref<HTMLElement | null>(null);
+const showConfidenceDetail = ref(false);
+const detailAsset = ref<Asset | null>(null);
+const colorMode = ref<'source' | 'superCategory'>('source');
 
 let map: L.Map | null = null;
 let markerClusterGroup: L.MarkerClusterGroup | null = null;
 let markersById: Record<string, L.Marker> = {};
+
+// --- Confidence detail dialog helpers ---
+const MAPS_SIGNALS: Record<string, { label: string; weight: number }> = {
+  name_match:        { label: 'Nombre incluye la empresa', weight: 0.30 },
+  type_match:        { label: 'Tipo compatible con activo productivo', weight: 0.20 },
+  address_corporate: { label: 'Señal de ubicación corporativa', weight: 0.15 },
+  website_match:     { label: 'Dominio web corporativo', weight: 0.15 },
+  reviews_b2b:       { label: 'Perfil de reseñas B2B', weight: 0.10 },
+  llm_confidence:    { label: 'Valoración del modelo IA', weight: 0.10 },
+};
+const DOC_SIGNALS: Record<string, { label: string; weight: number }> = {
+  evidence_strength:   { label: 'Fuerza de la evidencia documental', weight: 0.30 },
+  address_specificity: { label: 'Especificidad de la dirección', weight: 0.20 },
+  coordinate_source:   { label: 'Origen de las coordenadas', weight: 0.20 },
+  name_quality:        { label: 'Calidad del nombre del activo', weight: 0.15 },
+  llm_confidence:      { label: 'Valoración del modelo IA', weight: 0.15 },
+};
+
+const detailTierColor = computed(() => {
+  if (!detailAsset.value) return 'grey';
+  if (detailAsset.value.confidence_tier === 'HIGH') return 'green';
+  if (detailAsset.value.confidence_tier === 'MEDIUM') return 'orange';
+  return 'red';
+});
+const detailTierLabel = computed(() => {
+  if (!detailAsset.value) return '';
+  if (detailAsset.value.confidence_tier === 'HIGH') return 'Alta confianza';
+  if (detailAsset.value.confidence_tier === 'MEDIUM') return 'Confianza media';
+  return 'Baja confianza';
+});
+const detailSignalRows = computed(() => {
+  const signals = detailAsset.value?.confidence_signals;
+  if (!signals || Object.keys(signals).length === 0) return [];
+  const meta = 'evidence_strength' in signals ? DOC_SIGNALS : MAPS_SIGNALS;
+  return Object.entries(signals)
+    .filter(([key]) => key in meta)
+    .map(([key, value]) => ({ key, label: meta[key].label, weight: meta[key].weight, value }));
+});
+
+function signalColor(value: number): string {
+  if (value >= 0.7) return 'green';
+  if (value >= 0.4) return 'orange';
+  return 'red';
+}
+function detailSourceLabel(src: string): string {
+  const labels: Record<string, string> = { maps_api: 'Google Maps', document_upload: 'Documento', agent_search: 'Agente IA', llm_inference: 'Modelo IA' };
+  return labels[src] ?? src;
+}
+function detailSourceIcon(src: string): string {
+  const icons: Record<string, string> = { maps_api: 'mdi-google-maps', document_upload: 'mdi-file-document', agent_search: 'mdi-robot', llm_inference: 'mdi-brain' };
+  return icons[src] ?? 'mdi-database';
+}
+function detailSourceColor(src: string): string {
+  const colors: Record<string, string> = { maps_api: 'blue', document_upload: 'purple', agent_search: 'teal', llm_inference: 'grey' };
+  return colors[src] ?? 'grey';
+}
 
 const emit = defineEmits<{
   (e: 'marker-click', asset: Asset): void;
@@ -55,15 +228,42 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 function resolveSourceColor(dataSources: string[]): string {
-  // Priority: agent_search > document_upload > maps_api > fallback grey
   if (dataSources.includes('agent_search')) return SOURCE_COLORS.agent_search;
   if (dataSources.includes('document_upload')) return SOURCE_COLORS.document_upload;
   if (dataSources.includes('maps_api')) return SOURCE_COLORS.maps_api;
   return '#9E9E9E';
 }
 
-function createMarkerIcon(dataSources: string[], tier: string): L.DivIcon {
-  const color = resolveSourceColor(dataSources);
+function resolveMarkerColor(asset: Asset): string {
+  if (colorMode.value === 'superCategory') {
+    const sc = CATEGORY_TO_SUPER[asset.category as AssetCategory];
+    return sc ? SUPER_CATEGORY_COLORS[sc] : '#9E9E9E';
+  }
+  return resolveSourceColor(asset.data_sources || []);
+}
+
+const legendItems = computed(() => {
+  if (colorMode.value === 'source') {
+    return Object.entries(SOURCE_COLORS)
+      .filter(([key]) => (store.sourceCounts[key] ?? 0) > 0)
+      .map(([key, color]) => ({
+        key,
+        color,
+        label: SOURCE_LABELS[key],
+        count: store.sourceCounts[key] ?? 0,
+      }));
+  }
+  return Object.values(AssetSuperCategory)
+    .filter((sc) => (store.superCategoryCounts[sc] ?? 0) > 0)
+    .map((sc) => ({
+      key: sc,
+      color: SUPER_CATEGORY_COLORS[sc],
+      label: SUPER_CATEGORY_LABELS[sc],
+      count: store.superCategoryCounts[sc] ?? 0,
+    }));
+});
+
+function createMarkerIcon(color: string, tier: string): L.DivIcon {
   const opacity = tier === 'LOW' ? '0.55' : '1';
   const size = tier === 'HIGH' ? 14 : 10;
   return L.divIcon({
@@ -127,6 +327,16 @@ function buildPopupContent(asset: Asset): string {
           <div style="height:7px;border-radius:6px;background:${tierColor};width:${confPct}%;"></div>
         </div>
         <span style="font-size:11px;margin-left:6px;font-weight:700;color:#1f3460;">${confPct}%</span>
+        <button
+          data-action="confidence-detail"
+          data-asset-id="${asset.id}"
+          style="margin-left:6px;background:none;border:none;cursor:pointer;padding:0;color:${tierColor};display:flex;align-items:center;"
+          title="Ver cálculo de confianza"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M13 9h-2V7h2m0 10h-2v-6h2m-1-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2z"/>
+          </svg>
+        </button>
       </div>
       ${tags ? `<div style="margin-bottom:4px;">${tags}</div>` : ''}
       <a href="https://www.google.com/maps/place/?q=place_id:${asset.google_place_id}" target="_blank" style="font-size:11px;color:#2b61da;text-decoration:none;font-weight:600;">Ver en Google Maps ↗</a>
@@ -153,7 +363,7 @@ function addMarkers() {
 
   for (const asset of assets) {
     const marker = L.marker([asset.latitude, asset.longitude], {
-      icon: createMarkerIcon(asset.data_sources || [], asset.confidence_tier),
+      icon: createMarkerIcon(resolveMarkerColor(asset), asset.confidence_tier),
     });
     marker.bindPopup(buildPopupContent(asset), { maxWidth: 280 });
     marker.on('click', () => {
@@ -205,35 +415,26 @@ onMounted(() => {
 
   L.control.layers(baseLayers).addTo(map);
 
-  // Source legend
-  const legend = new (L.Control.extend({
-    options: { position: 'bottomright' },
-    onAdd() {
-      const div = L.DomUtil.create('div', 'source-legend');
-      div.innerHTML = Object.entries(SOURCE_COLORS)
-        .map(
-          ([key, color]) =>
-            `<div class="source-legend-row">
-              <span class="source-legend-dot" style="background:${color}"></span>
-              <span>${SOURCE_LABELS[key]}</span>
-            </div>`,
-        )
-        .join('');
-      return div;
-    },
-  }))();
-  legend.addTo(map);
-
   nextTick(() => addMarkers());
+
+  mapContainer.value.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-action="confidence-detail"]');
+    if (!btn) return;
+    e.stopPropagation();
+    const assetId = btn.getAttribute('data-asset-id');
+    const asset = store.assets.find((a) => a.id === assetId) ?? null;
+    detailAsset.value = asset;
+    showConfidenceDetail.value = true;
+  });
 });
 
 watch(
   () => [store.filteredAssets, store.clusteringEnabled],
-  () => {
-    addMarkers();
-  },
+  () => { addMarkers(); },
   { deep: true },
 );
+
+watch(colorMode, () => { addMarkers(); });
 
 watch(
   () => store.selectedAssetId,
@@ -293,31 +494,72 @@ onUnmounted(() => {
   color: #223a69 !important;
 }
 
-.source-legend {
-  background: rgba(255, 255, 255, 0.93);
+.score-summary {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ── Legend overlay ──────────────────────────────────────────── */
+.legend-overlay {
+  position: absolute;
+  bottom: 28px;
+  right: 10px;
+  z-index: 800;
+  background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(108, 141, 200, 0.28);
-  border-radius: 12px;
-  padding: 0.55rem 0.8rem;
-  box-shadow: 0 8px 20px rgba(19, 52, 118, 0.1);
+  border-radius: 14px;
+  padding: 0.6rem 0.8rem 0.55rem;
+  box-shadow: 0 8px 22px rgba(19, 52, 118, 0.12);
   font-family: 'Sora', sans-serif;
   font-size: 11px;
   color: #223a69;
-  min-width: 120px;
+  min-width: 140px;
+  backdrop-filter: blur(6px);
 }
 
-.source-legend-row {
+.legend-toggle {
+  width: 100%;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.legend-toggle-btn {
+  flex: 1;
+  font-size: 10px !important;
+  letter-spacing: 0.02em;
+  text-transform: none !important;
+}
+
+.legend-divider {
+  height: 1px;
+  background: rgba(108, 141, 200, 0.2);
+  margin: 0.45rem 0;
+}
+
+.legend-row {
   display: flex;
   align-items: center;
   gap: 7px;
   padding: 2px 0;
 }
 
-.source-legend-dot {
+.legend-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
   border: 1.5px solid white;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.legend-label {
+  flex: 1;
+  font-size: 11px;
+  color: #223a69;
+}
+
+.legend-count {
+  font-size: 10px;
+  color: #7894c4;
+  font-weight: 600;
 }
 </style>

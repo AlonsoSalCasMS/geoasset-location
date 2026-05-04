@@ -1,0 +1,156 @@
+REPSOL S.A. — INFORME DE ACTIVOS PRODUCTIVOS 2024
+Dirección corporativa: Calle Méndez Álvaro, 44, 28045 Madrid, España
+
+================================================================================
+1. SEDE CORPORATIVA Y OFICINAS PRINCIPALES
+================================================================================
+
+SEDE CENTRAL REPSOL
+Calle Méndez Álvaro, 44, 28045 Madrid, España
+Latitud: 40.3934, Longitud: -3.6826
+Edificio principal del grupo con más de 3.000 empleados. Comprende las áreas de
+dirección general, finanzas, recursos humanos y comunicación corporativa.
+
+CAMPUS REPSOL — CIUDAD DE LA ENERGÍA
+Calle Agustín de Betancourt, 4, 28003 Madrid, España
+Latitud: 40.4333, Longitud: -3.7050
+Hub tecnológico y de innovación del grupo. Incluye laboratorios de I+D, centro
+de ciberseguridad y áreas de transformación digital.
+
+OFICINA REGIONAL NORTE
+Calle Colón de Larreátegui, 26, 48009 Bilbao, País Vasco, España
+Latitud: 43.2630, Longitud: -2.9350
+Oficina regional con funciones de coordinación operativa para el norte peninsular.
+Plantilla aproximada: 250 personas.
+
+OFICINA REGIONAL SUR
+Avenida de la Borbolla, 11, 41004 Sevilla, Andalucía, España
+Latitud: 37.3772, Longitud: -5.9785
+Centro administrativo y de gestión de proyectos para la zona sur. Aproximadamente
+180 empleados en funciones de operaciones y comercial.
+
+================================================================================
+2. REFINERÍAS E INSTALACIONES INDUSTRIALES
+================================================================================
+
+REFINERÍA LA PAMPILLA — LIMA, PERÚ (filial Repsol Perú)
+Avenida Néstor Gambetta 8376, Ventanilla, Callao, Perú
+Latitud: -11.8720, Longitud: -77.1270
+Refinaría de petróleo con capacidad de procesamiento de 117.000 barriles por día.
+Principal instalación productiva de Repsol en América Latina. Produce gasolinas,
+diésel, GLP y asfaltos.
+
+REFINERÍA PETRONOR (participación Repsol 85%)
+Muskiz, 48550, Vizcaya, País Vasco, España
+Latitud: 43.3360, Longitud: -3.1060
+Mayor refinería de España por capacidad, con 220.000 barriles/día de procesamiento.
+Superficie: 2,2 millones de m². Produce combustibles, lubricantes y productos
+petroquímicos para el mercado europeo.
+
+REFINERÍA PUERTOLLANO
+Carretera de Calzada de Calatrava, s/n, 13500 Puertollano, Ciudad Real, España
+Latitud: 38.6860, Longitud: -4.0990
+Capacidad de refino: 100.000 barriles/día. Especializada en producción de gasolinas
+de alto octanaje y combustibles de aviación (jet fuel). Conectada por oleoducto
+con el puerto de Cartagena.
+
+REFINERÍA CARTAGENA
+Polígono Industrial El Almarjal, Escombreras, 30370 Cartagena, Murcia, España
+Latitud: 37.5730, Longitud: -0.9810
+Instalación de refino ampliada en 2012. Capacidad: 220.000 barriles/día.
+Produce diésel de baja emisión, naftas petroquímicas y bases lubricantes.
+Dispone de terminal marítimo propio en el puerto de Escombreras.
+
+COMPLEJO PETROQUÍMICO TARRAGONA
+Polígono Petroquímic, 43006 Tarragona, Cataluña, España
+Latitud: 41.0880, Longitud: 1.2320
+Instalación petroquímica que produce polipropileno, polietileno y derivados.
+Superficie: 480 hectáreas. Emplea a más de 1.500 personas directas.
+
+================================================================================
+3. CENTROS LOGÍSTICOS Y DE DISTRIBUCIÓN
+================================================================================
+
+TERMINAL DE ALMACENAMIENTO Y DISTRIBUCIÓN — BARCELONA
+Puerto de Barcelona, Zona Franca, Carrer B, 08040 Barcelona, España
+Latitud: 41.3380, Longitud: 2.1550
+Terminal de almacenamiento de productos refinados (gasolinas, gasóleo, queroseno).
+Capacidad total de tanques: 450.000 m³. Conectada con la red de oleoductos CLH.
+
+TERMINAL DE ALMACENAMIENTO — HUELVA
+Muelle de Andalucía, s/n, 21001 Huelva, Andalucía, España
+Latitud: 37.2650, Longitud: -6.9460
+Instalación portuaria de descarga y almacenamiento de crudos. Capacidad: 280.000 m³.
+Opera en coordinación con la refinería de Cádiz.
+
+CENTRO LOGÍSTICO ZONA CENTRO — MADRID
+Polígono Industrial Pradillo, Calle de la Granja, 30, 28108 Alcobendas, Madrid, España
+Latitud: 40.5250, Longitud: -3.6370
+Almacén central de distribución de lubricantes, grasas industriales y productos
+especiales para la zona centro peninsular. 35.000 m² de superficie cubierta.
+
+================================================================================
+4. ESTACIONES DE SERVICIO (ACTIVOS COMERCIALES DESTACADOS)
+================================================================================
+
+ESTACIÓN DE SERVICIO REPSOL — A-6 KM 15
+Autovía del Noroeste A-6, Km 15, 28220 Majadahonda, Madrid, España
+Latitud: 40.4590, Longitud: -3.8330
+Estación de servicio de gran tráfico con tienda WilliamS, cafetería y lavado
+automático. Una de las estaciones de mayor facturación de la red en España.
+
+ESTACIÓN DE SERVICIO REPSOL — ZONA FRANCA
+Gran Via de les Corts Catalanes, 902, 08020 Barcelona, España
+Latitud: 41.4090, Longitud: 2.1970
+Estación urbana de alta capacidad con surtidores de GNC (gas natural comprimido)
+y puntos de recarga eléctrica. Superficie: 4.200 m².
+
+ESTACIÓN DE SERVICIO REPSOL — SEVILLA SUR
+Carretera SE-30, Km 4,5, 41007 Sevilla, España
+Latitud: 37.3530, Longitud: -5.9610
+Estación en vía de alta capacidad con área de descanso para camiones y vehículos
+pesados. Capacidad de almacenamiento subterráneo: 120.000 litros.
+
+================================================================================
+5. INSTALACIONES DE ENERGÍAS RENOVABLES
+================================================================================
+
+PARQUE EÓLICO DELTA II — ARAGÓN
+Término municipal de Bujaraloz, 50177 Zaragoza, Aragón, España
+Latitud: 41.4870, Longitud: -0.1250
+Parque eólico con 42 aerogeneradores Vestas de 4,2 MW cada uno. Potencia total
+instalada: 176 MW. Producción anual estimada: 520 GWh.
+
+PLANTA SOLAR VALDESOLAR
+Término municipal de Valdecaballeros, 06683 Badajoz, Extremadura, España
+Latitud: 39.2540, Longitud: -5.2130
+Planta fotovoltaica de 264 MW pico. Superficie ocupada: 750 hectáreas.
+En operación desde 2021, suministra energía equivalente a 185.000 hogares.
+
+PARQUE EÓLICO OFFSHORE WIKINGER (participación 25%)
+Mar Báltico, frente a la costa de Rügen, Alemania
+Latitud: 54.8330, Longitud: 14.0670
+70 aerogeneradores offshore con potencia total de 350 MW. Repsol tiene una
+participación del 25% en este proyecto gestionado por Iberdrola.
+
+================================================================================
+6. CENTROS TECNOLÓGICOS Y DE INVESTIGACIÓN
+================================================================================
+
+CENTRO TECNOLÓGICO REPSOL — MÓSTOLES
+Calle Agustín de Betancourt, s/n, 28933 Móstoles, Madrid, España
+Latitud: 40.3210, Longitud: -3.8730
+Principal centro de I+D del grupo. 500 investigadores y técnicos. Laboratorios
+de análisis de crudos, desarrollo de lubricantes, nuevos materiales y tecnologías
+de captura de CO₂. Superficie: 12.000 m².
+
+LABORATORIO DE INNOVACIÓN DIGITAL — BARCELONA
+Calle Pallars, 193, 08005 Barcelona, España
+Latitud: 41.4010, Longitud: 2.1960
+Hub de innovación digital enfocado en IA aplicada a operaciones, gemelos digitales
+de refinerías y soluciones de movilidad sostenible. 120 profesionales en plantilla.
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================
+Documento interno de uso corporativo — Repsol S.A. © 2024

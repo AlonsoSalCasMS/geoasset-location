@@ -55,7 +55,7 @@ def _reviews_signal(asset: EnrichedAsset) -> float:
     return 0.3
 
 
-def compute_confidence(asset: EnrichedAsset, company_name: str) -> float:
+def compute_confidence(asset: EnrichedAsset, company_name: str) -> tuple[float, dict]:
     signals = {
         "name_match": _name_match_signal(asset, company_name),
         "type_match": _type_match_signal(asset),
@@ -71,7 +71,7 @@ def compute_confidence(asset: EnrichedAsset, company_name: str) -> float:
     beta_param = 1 + (1 - raw_score) * 10
     smoothed = beta_dist.mean(alpha, beta_param)
 
-    return round(smoothed, 3)
+    return round(smoothed, 3), {k: round(v, 3) for k, v in signals.items()}
 
 
 def get_confidence_tier(score: float) -> str:
@@ -85,13 +85,14 @@ def get_confidence_tier(score: float) -> str:
 async def score_assets(assets: List[EnrichedAsset], company_name: str) -> List[ScoredAsset]:
     scored: List[ScoredAsset] = []
     for asset in assets:
-        score = compute_confidence(asset, company_name)
+        score, signals = compute_confidence(asset, company_name)
         tier = get_confidence_tier(score)
         scored.append(
             ScoredAsset(
                 **asset.model_dump(),
                 confidence_score=score,
                 confidence_tier=tier,
+                confidence_signals=signals,
             )
         )
     scored.sort(key=lambda a: a.confidence_score, reverse=True)

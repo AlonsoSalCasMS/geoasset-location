@@ -2,7 +2,7 @@
 
 > **Proyecto:** Caso II — Aplicación de IA a la Geolocalización de Activos Productivos  
 > **Contexto académico:** Trabajo de Fin de Máster (TFM)  
-> **Stack:** Vue 3 · FastAPI · Docker · LiteLLM · Google Maps API · PostgreSQL  
+> **Stack:** Vue 3 · FastAPI · Docker · LiteLLM · Google Maps API · PostgreSQL · CrewAI
 
 ---
 
@@ -19,16 +19,16 @@ El sistema responde a una necesidad real en contextos de análisis de inversión
 - **Geografía cubierta:** España (incluyendo Canarias, Baleares, Ceuta y Melilla).
 - **Tipo de entidades analizadas:** Empresas con presencia operativa en territorio español, cotizadas o no.
 - **Tipo de activos identificables:** Ver Sección 5 — Catálogo de Categorías de Activos.
-- **Fuentes de datos:** Google Maps API (Places + Geocoding), informes públicos anuales, webs corporativas y registros públicos accesibles.
+- **Fuentes de datos:** Google Maps API (Places + Geocoding), búsqueda web con agente IA, documentos corporativos (informes anuales, memorias, presentaciones).
 
 ### 1.3 Propuesta de Valor
 
 | Método tradicional | GeoAssets Intelligence |
 |---|---|
-| Búsqueda manual fuente por fuente | Agregación automatizada y paralela |
+| Búsqueda manual fuente por fuente | Tres fuentes automatizadas y combinables |
 | Datos no estructurados dispersos | Salida estructurada, categorizada y geocodificada |
 | Horas o días de trabajo analítico | Resultado en 60–120 segundos |
-| Sin probabilidad de confianza | Score de confianza por activo mediante distribución bayesiana |
+| Sin probabilidad de confianza | Score de confianza por activo mediante distribución Beta |
 | Visualización estática o ninguna | Mapa interactivo con capas, filtros y detalle por activo |
 
 ---
@@ -38,30 +38,35 @@ El sistema responde a una necesidad real en contextos de análisis de inversión
 ### 2.1 Vista de Alto Nivel
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        CLIENTE (SPA)                        │
-│              Vue 3 + Pinia + Leaflet / Mapbox GL            │
-└───────────────────────┬─────────────────────────────────────┘
-                        │ HTTP / WebSocket (SSE)
-┌───────────────────────▼─────────────────────────────────────┐
-│                    BACKEND (FastAPI)                         │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐  │
-│  │  API Router │  │ Orchestrator │  │  LLM Processing   │  │
-│  │  /search    │  │  Pipeline    │  │  (LiteLLM Pool)   │  │
-│  │  /assets    │  │  + SSE       │  │  Parallel Workers │  │
-│  │  /stream    │  │  Progress    │  │                   │  │
-│  └─────────────┘  └──────────────┘  └───────────────────┘  │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │              Data Layer                              │    │
-│  │  Google Maps API  │  PostgreSQL  │  Redis (cache)   │    │
-│  └─────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-                        │
-          ┌─────────────┴─────────────┐
-          │        DOCKER COMPOSE      │
-          │  frontend · backend        │
-          │  postgres · redis          │
-          └────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                          CLIENTE (SPA)                              │
+│         Vue 3 + Pinia + Vuetify + Leaflet.js                        │
+│  SearchBar · AgentSearchView · AgentDocumentReviewView              │
+│  ProcessingView · AssetSidebar · AssetMap                           │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │ HTTP / SSE (Server-Sent Events)
+┌────────────────────────────▼────────────────────────────────────────┐
+│                       BACKEND (FastAPI)                             │
+│                                                                     │
+│  /api/v1/companies   /api/v1/assets   /api/v1/documents             │
+│  /api/v1/agent                                                      │
+│                                                                     │
+│  ┌─────────────────┐  ┌───────────────────┐  ┌──────────────────┐  │
+│  │  Pipeline Maps  │  │ Pipeline Documento │  │ Pipeline Agente  │  │
+│  │  (5 pasos)      │  │ (6 pasos)          │  │ (CrewAI + MCP)   │  │
+│  └─────────────────┘  └───────────────────┘  └──────────────────┘  │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                       Data Layer                             │   │
+│  │   Google Maps API · PostgreSQL · Redis · AWS Bedrock (LLM)  │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+                             │
+               ┌─────────────┴─────────────┐
+               │       DOCKER COMPOSE       │
+               │  frontend · backend        │
+               │  postgres · redis          │
+               └────────────────────────────┘
 ```
 
 ### 2.2 Stack Tecnológico Detallado
@@ -70,211 +75,205 @@ El sistema responde a una necesidad real en contextos de análisis de inversión
 |---|---|---|
 | Frontend | Vue 3 + Vite + TypeScript | SPA reactiva, composición moderna |
 | Estado | Pinia | Store reactivo nativo de Vue 3 |
-| Mapa | Leaflet.js + OpenStreetMap / Mapbox GL | Visualización geoespacial interactiva |
-| UI | Tailwind CSS + HeadlessUI | Diseño profesional sin overhead |
+| UI | Vuetify 3 + MDI icons | Material Design, componentes listos |
+| Mapa | Leaflet.js + OpenStreetMap + leaflet.markercluster | Visualización geoespacial interactiva |
 | Backend | FastAPI (Python 3.11+) | Async nativo, tipado, OpenAPI automático |
 | Streaming | Server-Sent Events (SSE) | Progreso en tiempo real sin WebSocket |
-| LLM Gateway | LiteLLM | Abstracción multi-proveedor (OpenAI, Anthropic, etc.) |
-| LLM Workers | asyncio + semaphore pool | Procesamiento paralelo controlado |
+| LLM Gateway | LiteLLM | Abstracción multi-proveedor |
+| LLM Provider | AWS Bedrock | Modelos GPT-oss y Claude vía Bedrock |
+| Agente IA | CrewAI + DuckDuckGo MCP | Búsqueda web autónoma de documentos |
+| Document parsing | Docling | Extracción de texto de PDF/DOCX/PPTX |
 | Maps/Places | Google Maps Places API v2 | Fuente principal de activos geolocalizados |
-| Base de datos | PostgreSQL + PostGIS | Almacenamiento geoespacial nativo |
-| Caché | Redis | TTL por empresa, evita recómputo |
+| Geocoding | Google Maps Geocoding API | Resolución de coordenadas desde texto |
+| Base de datos | PostgreSQL 16 | Almacenamiento persistente de activos |
+| Caché | Redis 7 | TTL por empresa, evita recómputo |
 | Contenedores | Docker + Docker Compose | Despliegue reproducible |
-| CI | GitHub Actions | Tests y build automatizados |
+| CI/CD | AWS CodeBuild | Build de imágenes Docker |
+| Package manager (backend) | uv | Instalación rápida de dependencias Python |
+| Package manager (frontend) | Bun 1.1.0 | Build y dev server rápidos |
 
 ---
 
-## 3. Flujo Funcional Completo
+## 3. Modos de Análisis
 
-### 3.1 Diagrama de Secuencia
+El sistema permite tres formas de localizar activos, combinables entre sí:
 
-```
-Usuario          Frontend (Vue)         Backend (FastAPI)         LLMs / APIs Externas
-   │                   │                       │                          │
-   │  Escribe empresa  │                       │                          │
-   │──────────────────▶│                       │                          │
-   │                   │  GET /search?q=       │                          │
-   │                   │──────────────────────▶│                          │
-   │                   │  [listado empresas]   │                          │
-   │                   │◀──────────────────────│                          │
-   │  Selecciona       │                       │                          │
-   │──────────────────▶│                       │                          │
-   │                   │  POST /assets/analyze │                          │
-   │                   │──────────────────────▶│                          │
-   │                   │                       │── PASO 1: Search Maps ──▶│
-   │                   │  SSE: paso 1 ✓        │◀── raw places data ──────│
-   │                   │◀──────────────────────│                          │
-   │                   │                       │── PASO 2: LLM filter ───▶│
-   │                   │  SSE: paso 2 ✓        │◀── structured JSON ──────│
-   │                   │◀──────────────────────│                          │
-   │                   │                       │── PASO 3: Enrich ───────▶│
-   │                   │  SSE: paso 3 ✓        │◀── enriched assets ──────│
-   │                   │◀──────────────────────│                          │
-   │                   │                       │── PASO 4: Confidence ───▶│
-   │                   │  SSE: paso 4 ✓        │◀── scored assets ────────│
-   │                   │◀──────────────────────│                          │
-   │                   │  SSE: complete + data │                          │
-   │                   │◀──────────────────────│                          │
-   │  Vista mapa ✓     │                       │                          │
-   │◀──────────────────│                       │                          │
-```
+### 3.1 Búsqueda en Google Maps
+El usuario escribe el nombre de una empresa. El backend lanza queries paralelas a la Google Places API y filtra y enriquece los resultados con LLMs.
 
-### 3.2 Descripción de Pasos del Pipeline
+### 3.2 Subida de Documento
+El usuario sube un PDF, DOCX o PPTX (máximo 25 MB). El pipeline extrae, geocodifica y puntúa los activos mencionados en el documento.
 
-#### PASO 0 — Identificación de la Empresa
-**Responsable:** Backend → Google Places Text Search + base de datos interna  
-**Input:** Nombre libre escrito por el usuario  
-**Output:** Entidad empresarial normalizada: nombre oficial, CIF/NIF (si disponible), sector CNAE, domicilio social  
-**Duración estimada:** ~2 s  
+### 3.3 Búsqueda con Agente IA
+El usuario activa el modo agente. Un agente CrewAI busca en la web documentos corporativos relevantes (informes anuales, memorias, presentaciones) usando DuckDuckGo. El usuario revisa y selecciona los documentos encontrados, que luego se procesan con el pipeline de documento.
 
-Proceso:
-1. Búsqueda en Places API con query `"{empresa}" empresa España`.
-2. Desambiguación por LLM si hay múltiples candidatos (ranking por popularidad y coincidencia).
-3. Extracción de nombre canónico para usar en las búsquedas de activos.
+### 3.4 Modo Combinado
+Los modos Maps y Documento pueden usarse de forma combinada. Los activos se deduplicaban por ID y se muestran conjuntamente en el mapa, con indicador de fuente por activo (`data_sources`).
 
 ---
 
-#### PASO 1 — Extracción de Activos desde Google Maps
-**Responsable:** Backend → Google Maps Places API (Nearby Search + Text Search)  
-**Input:** Nombre canónico de la empresa  
-**Output:** Lista raw de `Place` objects de Google Maps  
-**Duración estimada:** ~10–20 s  
+## 4. Pipelines de Procesamiento
 
-Proceso:
-1. Se ejecutan **N queries paralelas** con variaciones del nombre de la empresa más keywords por categoría de activo:
-   - `"{empresa}" almacén logístico`
-   - `"{empresa}" planta producción`
-   - `"{empresa}" oficinas centrales`
-   - `"{empresa}" centro distribución`
-   - ... (ver Sección 5 para listado completo)
-2. Se hace Nearby Search en las principales ciudades españolas (Madrid, Barcelona, Valencia, Sevilla, Zaragoza, Bilbao, Málaga, Murcia, Palma, Las Palmas, etc.) para garantizar cobertura nacional.
-3. Se agregan y deduplican resultados por `place_id`.
-4. Se obtienen detalles completos por cada `place_id`: nombre, dirección, coordenadas, tipo, horario, rating, website, photos.
+### 4.1 Pipeline Maps (5 pasos)
 
-**Parámetros de la API utilizados:**
-```python
-{
-  "query": "{empresa} {keyword_categoria}",
-  "locationbias": "rectangle:Spain",  # bbox España
-  "language": "es",
-  "fields": ["id", "displayName", "formattedAddress", 
-             "location", "types", "websiteUri", 
-             "nationalPhoneNumber", "regularOpeningHours"]
-}
+```
+Usuario escribe empresa
+        │
+        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ PASO 0 · Identificación de empresa          ~2 s                │
+│  → Slugifica el nombre, crea company_id                         │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ PASO 1 · Búsqueda en Google Maps            ~10–20 s            │
+│  → N queries paralelas (nombre + keywords + provincias)         │
+│  → Deduplicación por place_id                                   │
+│  → Salida: List[RawPlace]                                       │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ PASO 2 · Filtrado y clasificación con LLM   ~15–30 s            │
+│  → Batches de 20 places → LLM evalúa si es activo productivo    │
+│  → Asigna categoría (HQ, FAB, LOG, etc.) y llm_confidence       │
+│  → Salida: List[FilteredAsset]                                  │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ PASO 3 · Enriquecimiento                    ~10–20 s            │
+│  → LLM infiere descripción, tamaño, tags, municipio, provincia  │
+│  → Salida: List[EnrichedAsset]                                  │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ PASO 4 · Scoring de confianza               ~3–5 s              │
+│  → 6 señales ponderadas + suavizado Beta                        │
+│  → Salida: List[ScoredAsset] con confidence_score y tier        │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-#### PASO 2 — Filtrado y Clasificación con LLM
-**Responsable:** Backend → LiteLLM (pool de workers async)  
-**Input:** Lista raw de places de Google Maps  
-**Output:** Lista filtrada y clasificada de activos productivos  
-**Duración estimada:** ~15–30 s (paralelo)  
-
-Proceso:
-1. Los resultados se agrupan en **batches de 20 places** para optimizar tokens.
-2. Cada batch se envía a un worker LLM en paralelo (máximo configurable, por defecto 5 workers concurrentes).
-3. El LLM evalúa para cada place:
-   - ¿Es un activo productivo real de esta empresa? (`boolean`)
-   - ¿Cuál es su categoría? (ver Sección 5)
-   - ¿Cuál es el nombre normalizado?
-   - ¿Es una sede principal, secundaria o instalación operativa?
-4. El LLM responde en JSON estructurado estricto.
-5. Se descartan lugares con `is_productive_asset: false`.
-
-**System prompt del LLM de filtrado:**
-```
-Eres un analista experto en activos empresariales. 
-Tu tarea es evaluar si un lugar de Google Maps es un activo productivo 
-real de la empresa "{empresa}". Un activo productivo es cualquier 
-instalación física donde la empresa realiza operaciones: fábricas, 
-almacenes, oficinas, centros logísticos, plantas, etc. 
-NO incluyas: restaurantes, tiendas de terceros, menciones indirectas, 
-resultados irrelevantes. Responde ÚNICAMENTE en JSON válido.
-```
-
----
-
-#### PASO 3 — Enriquecimiento de Datos
-**Responsable:** Backend → LiteLLM + Google Maps Place Details  
-**Input:** Lista filtrada de activos productivos  
-**Output:** Activos enriquecidos con metadatos adicionales  
-**Duración estimada:** ~10–20 s  
-
-Proceso:
-1. Para cada activo confirmado, se solicitan detalles adicionales a Google Maps (reviews, fotos, datos de contacto completos).
-2. Se infiere mediante LLM:
-   - Descripción funcional del activo (qué hace en esa ubicación).
-   - Estimación de tamaño/relevancia (Grande / Mediana / Pequeña) basada en señales disponibles.
-   - Tags adicionales de actividad (ej: `["logística", "e-commerce", "refrigerado"]`).
-3. Si hay website corporativo disponible, se hace un light scraping para validar la dirección.
-
----
-
-#### PASO 4 — Scoring de Confianza (Distribución de Probabilidades)
-**Responsable:** Backend → Motor probabilístico propio  
-**Input:** Activos enriquecidos  
-**Output:** Activos con `confidence_score` entre 0 y 1  
-**Duración estimada:** ~3–5 s  
-
-El score de confianza se calcula como una **distribución de Bernoulli ponderada** sobre señales independientes:
+#### Señales del scoring Maps
 
 ```python
-# Señales y pesos
-SIGNALS = {
-    "name_match":          0.30,  # Nombre del place incluye el nombre de la empresa
-    "type_match":          0.20,  # Tipo de Google Maps compatible con activo productivo
-    "address_corporate":   0.15,  # Dirección coincide con info pública registral
-    "website_match":       0.15,  # Website asociado es dominio corporativo
-    "reviews_b2b":         0.10,  # Reviews sugieren uso B2B/industrial
-    "llm_confidence":      0.10,  # Score interno del LLM en el paso de clasificación
+SIGNALS_WEIGHTS = {
+    "name_match":        0.30,  # Primera palabra empresa en nombre del place
+    "type_match":        0.20,  # Tipo compatible con activo productivo
+    "address_corporate": 0.15,  # Señal fija (valor base 0.5)
+    "website_match":     0.15,  # Dominio corporativo en website
+    "reviews_b2b":       0.10,  # >100 reseñas → 0.8 | >20 → 0.5 | else → 0.3
+    "llm_confidence":    0.10,  # Confianza del LLM en paso 2 (default 0.5)
 }
-
-def compute_confidence(asset: AssetCandidate) -> float:
-    score = sum(
-        weight * asset.signals.get(signal, 0)
-        for signal, weight in SIGNALS.items()
-    )
-    # Aplicar suavizado beta para evitar extremos 0/1 duros
-    alpha, beta_param = 1 + score * 10, 1 + (1 - score) * 10
-    return beta.mean(alpha, beta_param)
+# Score raw suavizado con distribución Beta(1 + raw*10, 1 + (1-raw)*10)
 ```
 
-Los activos con `confidence_score < 0.35` se marcan como `LOW_CONFIDENCE` y se muestran con indicador visual diferenciado en el mapa.
+---
+
+### 4.2 Pipeline Documento (6 pasos)
+
+```
+Usuario sube PDF/DOCX/PPTX (o agente lo descarga)
+        │
+        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ PASO D0 · Parseo del documento                                  │
+│  → Docling convierte a Markdown (con OCR opcional)              │
+│  → Fallback para PDFs cifrados/imagen                           │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ PASO D1 · Chunking                                              │
+│  → HybridChunker (max 2000 tokens por chunk)                    │
+│  → Fallback párrafo-based (max 8000 chars)                      │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ PASO D2 · Extracción de activos con LLM                         │
+│  → Un LLM por chunk en paralelo (concurrencia configurable)     │
+│  → Extrae: nombre, categoría, dirección, coordenadas, cita      │
+│  → Salida: List[DocumentExtractedAsset]                         │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ PASO D3 · Deduplicación                                         │
+│  → Merge de menciones duplicadas (nombre, dirección, coords)    │
+│  → Agrupa citas de evidencia separadas por \n---\n              │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ PASO D4 · Geocodificación y enriquecimiento                     │
+│  → 1º coords reportadas en doc → 2º Google Geocoding API        │
+│  → 3º LLM infiere coords → 4º default Madrid (40.41, -3.70)    │
+│  → Añade municipio, provincia, CCAA                             │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ PASO D5 · Scoring de confianza                                  │
+│  → 5 señales distintas a las del pipeline Maps                  │
+│  → Salida: List[DocumentScoredAsset]                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Señales del scoring Documento
+
+```python
+SIGNALS_WEIGHTS_DOC = {
+    "evidence_strength":   0.30,  # ≥3 menciones→1.0 | 2→0.8 | 1 con cita→0.6 | else→0.3
+    "address_specificity": 0.20,  # base 0.4 + dígitos(+0.2) + coma(+0.2) + len>30(+0.2)
+    "coordinate_source":   0.20,  # reported→1.0 | google_geocoding→0.8 | llm→0.65 | default→0.2
+    "name_quality":        0.15,  # penaliza nombres cortos o genéricos ("planta", "instalación")
+    "llm_confidence":      0.15,  # confianza del LLM en paso D2 (default 0.5)
+}
+# Mismo suavizado Beta que el pipeline Maps
+```
 
 ---
 
-#### PASO 5 — Persistencia y Caché
-**Responsable:** Backend → PostgreSQL + Redis  
+### 4.3 Pipeline Agente (CrewAI)
 
-- Resultados completos se persisten en PostgreSQL con extensión PostGIS.
-- Se cachean en Redis con TTL de 24 horas por empresa (evita recómputo en accesos repetidos).
-- El usuario puede forzar refresco con flag `force_refresh=true`.
+```
+Usuario activa modo agente para una empresa
+        │
+        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ Agente CrewAI — rol: "Geospatial Asset Intelligence Researcher" │
+│                                                                 │
+│  Herramienta 1: WebSearchTool                                   │
+│   → DuckDuckGo vía MCP server (1 req/s rate-limited)           │
+│   → Fallback: scraping Bing                                     │
+│   → Emite eventos: agent_searching, agent_found_urls            │
+│                                                                 │
+│  Herramienta 2: DownloadDocumentTool                            │
+│   → Valida tipo (.pdf/.docx/.pptx) y tamaño (<25 MB)           │
+│   → Comprueba relevancia: nombre empresa + ≥2 keywords          │
+│   → Guarda en /tmp/agent_sessions/{session_id}/                 │
+│   → Emite eventos: agent_accepted, agent_rejected               │
+│                                                                 │
+│  Timeout: AGENT_MAX_DURATION_SECONDS (default 120 s)           │
+│  Máx. ficheros: AGENT_MAX_FILES (default 5)                     │
+│  Máx. iteraciones: AGENT_MAX_ITERATIONS (default 15)            │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ El usuario revisa y selecciona documentos
+                             ▼
+                  Pipeline Documento (D0–D5)
+                  para cada fichero seleccionado
+```
+
+Los documentos procesados por el agente pasan exactamente por el mismo pipeline de 6 pasos que un documento subido manualmente. El campo `data_sources` del activo resultante indica la procedencia (`agent_search` o `document_upload`).
 
 ---
 
-## 4. API — Endpoints Principales
+## 5. API — Endpoints
 
 ### `GET /api/v1/companies/search`
-Búsqueda y autocompletado de empresas.
+Búsqueda y autocompletado de empresas vía Google Places.
 
-**Query params:**
-- `q` (str): Texto de búsqueda (mínimo 3 caracteres)
-- `limit` (int, default 10): Número de resultados
+**Query params:** `q` (min 3 chars), `limit` (default 10, max 20)
 
 **Response:**
 ```json
 {
   "companies": [
-    {
-      "id": "mercadona_es",
-      "name": "Mercadona S.A.",
-      "cif": "A-46103834",
-      "sector": "Comercio al por menor",
-      "cnae": "4711",
-      "logo_url": "...",
-      "headquarters": "Tavernes Blanques, Valencia"
-    }
+    { "id": "mercadona_sa", "name": "Mercadona S.A.", "address": "...", "types": [...], "website": "..." }
   ]
 }
 ```
@@ -282,64 +281,58 @@ Búsqueda y autocompletado de empresas.
 ---
 
 ### `POST /api/v1/assets/analyze`
-Lanza el pipeline completo de análisis.
+Lanza el pipeline Maps para una empresa. Devuelve caché si existe, o streaming SSE.
 
-**Body:**
-```json
-{
-  "company_id": "mercadona_es",
-  "company_name": "Mercadona S.A.",
-  "force_refresh": false
-}
-```
+**Body:** `{ "company_id": "...", "company_name": "...", "force_refresh": false }`
 
-**Response (si ya hay caché):**
-```json
-{
-  "cached": true,
-  "assets": [...],
-  "metadata": { "last_updated": "2025-04-01T10:00:00Z", "total_assets": 47 }
-}
-```
+**Response (caché):** `{ "cached": true, "assets": [...], "metadata": {...} }`
 
-**Response (si no hay caché):** → Redirige a streaming SSE.
-
----
-
-### `GET /api/v1/assets/stream/{job_id}`
-Streaming Server-Sent Events del progreso del pipeline.
-
-**Eventos emitidos:**
-```
-event: step_start
-data: {"step": 1, "name": "Buscando en Google Maps", "estimated_seconds": 15}
-
-event: step_complete
-data: {"step": 1, "name": "Buscando en Google Maps", "found": 83, "duration_ms": 12400}
-
-event: step_start
-data: {"step": 2, "name": "Clasificando activos con IA", "estimated_seconds": 25}
-
-event: complete
-data: {"assets": [...], "total": 47, "high_confidence": 38, "low_confidence": 9}
-
-event: error
-data: {"step": 2, "message": "LLM timeout, retrying..."}
-```
+**Response (sin caché):** Stream SSE con eventos `job_started`, `step_start`, `step_complete`, `complete`, `error`.
 
 ---
 
 ### `GET /api/v1/assets/{company_id}`
 Obtiene activos ya procesados de la base de datos.
 
-**Query params:**
-- `category` (str, opcional): Filtrar por categoría
-- `min_confidence` (float, default 0.0): Filtrar por score mínimo
-- `bbox` (str, opcional): Filtrar por bounding box `lat_min,lon_min,lat_max,lon_max`
+**Query params:** `category` (opcional), `min_confidence` (0.0–1.0, default 0.0)
+
+**Response:** `{ "assets": [...], "metadata": { "total_assets": N } }`
 
 ---
 
-## 5. Catálogo de Categorías de Activos
+### `POST /api/v1/documents/analyze`
+Lanza el pipeline Documento. Acepta dos modos:
+
+**Modo upload:** `multipart/form-data` con campos `file` (PDF/DOCX/PPTX, max 25 MB), `company_name` (opcional), `force_refresh`.
+
+**Modo agente:** `multipart/form-data` con campos `session_id`, `agent_filename`, `source_override` (opcional).
+
+**Response:** Stream SSE con eventos `job_started`, `step_start`, `step_complete`, `complete`, `error`.
+
+---
+
+### `POST /api/v1/agent/search`
+Lanza el agente CrewAI para buscar documentos en la web.
+
+**Body:** `{ "company_name": "...", "company_id": "..." }`
+
+**Response:** Stream SSE con eventos `agent_started`, `agent_thinking`, `agent_searching`, `agent_found_urls`, `agent_downloading`, `agent_accepted`, `agent_rejected`, `agent_error`, `agent_complete` / `agent_timeout`.
+
+El evento `agent_complete` incluye: `{ "session_id": "...", "found_files": [...], "total_found": N }`.
+
+---
+
+### `GET /api/v1/agent/sessions/{session_id}/documents/{filename}`
+Descarga un documento guardado en la sesión del agente. Devuelve `FileResponse` con el media type apropiado.
+
+---
+
+### `GET /api/v1/agent/sessions/{session_id}/documents/{filename}/metadata`
+Metadatos del documento: `{ "filename": "...", "size": N, "page_count": N, "extension": "pdf" }`.
+
+---
+
+## 6. Catálogo de Categorías de Activos
 
 | Código | Categoría | Descripción | Keywords de búsqueda |
 |---|---|---|---|
@@ -358,265 +351,373 @@ Obtiene activos ya procesados de la base de datos.
 
 ---
 
-## 6. Modelo de Datos
+## 7. Modelo de Datos
 
-### Entidad `Asset`
+### Entidad `Asset` (tabla `assets` en PostgreSQL)
 
 ```python
-class Asset(BaseModel):
+class Asset:
     id: str                          # UUID
     company_id: str                  # FK empresa
+
+    # Identificación
     name: str                        # Nombre normalizado
-    raw_name: str                    # Nombre original de Google Maps
-    category: AssetCategory          # Enum de categorías (Sección 5)
-    subcategory: Optional[str]       # Etiqueta libre adicional
-    
+    raw_name: str                    # Nombre original de la fuente
+    category: AssetCategory          # Enum de categorías (Sección 6)
+    subcategory: Optional[str]
+
     # Localización
     latitude: float
     longitude: float
-    address: str                     # Dirección formateada
+    address: str
     municipality: str
     province: str
     autonomous_community: str
     postal_code: Optional[str]
-    
+
     # Metadatos funcionales
     description: Optional[str]       # Descripción inferida por LLM
     size_estimate: Optional[str]     # "LARGE" | "MEDIUM" | "SMALL"
-    functional_tags: List[str]       # Tags de actividad
+    functional_tags: List[str]
     is_headquarters: bool
-    
+
     # Fuente y confianza
     google_place_id: str
-    confidence_score: float          # 0.0 – 1.0
+    confidence_score: float          # 0.0 – 1.0 (distribución Beta)
     confidence_tier: str             # "HIGH" | "MEDIUM" | "LOW"
-    data_sources: List[str]          # ["google_maps", "llm_inference", ...]
-    
+    data_sources: List[str]          # ["maps_api", "document_upload", "agent_search", "llm_inference"]
+
+    # Contacto
+    website: Optional[str]
+    phone: Optional[str]
+
     # Control
     created_at: datetime
     updated_at: datetime
-    force_refreshed_at: Optional[datetime]
 ```
 
----
+### Umbrales de confianza (configurables)
 
-## 7. Interfaz de Usuario — Especificación Funcional
-
-### 7.1 Pantalla de Búsqueda
-
-- Campo de búsqueda con **autocompletado** (debounce 300ms, mínimo 3 caracteres).
-- Cada sugerencia muestra: logo de empresa (si disponible), nombre oficial, sector y ciudad de sede.
-- Diseño limpio tipo buscador, centrado en pantalla, con fondo oscuro y tipografía profesional.
-
-### 7.2 Pantalla de Carga (Processing View)
-
-Al iniciar el análisis, se muestra una pantalla de carga inmersiva con:
-
-- **Barra de progreso global** con porcentaje acumulado.
-- **Lista de pasos** con estados visuales: pendiente / en curso (animado) / completado / error.
-- Para cada paso en curso se muestra:
-  - Nombre del paso.
-  - Tiempo estimado restante (calculado dinámicamente con los eventos SSE).
-  - Contador de resultados parciales (ej: "83 ubicaciones encontradas").
-- **Log de actividad en tiempo real** (últimas 5 líneas, scroll automático).
-- Estética: dark mode, colores accent corporativos, iconografía coherente.
-
-### 7.3 Vista Principal — Mapa Interactivo
-
-Una vez completado el análisis:
-
-**Panel izquierdo (30% del ancho):**
-- Nombre y logo de la empresa analizada.
-- Resumen estadístico: total activos, activos por categoría, cobertura geográfica.
-- Lista de activos con scroll, buscable y filtrable.
-- Cada ítem muestra: icono de categoría · nombre · municipio · badge de confianza.
-- Click en ítem → centra mapa y abre popup del activo.
-
-**Panel derecho (70% del ancho) — Mapa:**
-- Mapa interactivo con marcadores agrupados por clustering (Leaflet.markercluster).
-- Cada marcador usa icono diferenciado por categoría de activo.
-- Marcadores con `confidence_tier: LOW` se muestran semitransparentes.
-- Click en marcador → popup con:
-  - Nombre del activo.
-  - Categoría e icono.
-  - Dirección completa.
-  - Descripción inferida.
-  - Score de confianza (barra visual).
-  - Tags funcionales.
-  - Enlace a Google Maps.
-
-**Controles del mapa:**
-- Filtro por categoría (checkboxes en overlay).
-- Filtro por nivel de confianza (slider).
-- Toggle clustering.
-- Botón de exportar a CSV / GeoJSON.
-- Selector de capa base (callejero / satélite / topográfico).
+| Tier | Condición por defecto |
+|---|---|
+| HIGH | `confidence_score >= 0.65` |
+| MEDIUM | `confidence_score >= 0.35` |
+| LOW | `confidence_score < 0.35` |
 
 ---
 
-## 8. Ciclo de Vida del Desarrollo de IA Generativa
+## 8. Interfaz de Usuario
 
-En cumplimiento de los requisitos del TFM, el proyecto sigue las fases establecidas del ciclo de vida de IA generativa:
+### 8.1 Pantalla de Búsqueda (`SearchBar`)
 
-### 8.1 Definición del Problema y Casos de Uso
-- Identificación de la tarea: extracción y estructuración de información geoespacial empresarial.
-- Definición de métricas de éxito: precision/recall de activos identificados vs. ground truth manual.
-- Establecimiento de criterios de calidad mínimos por caso de uso.
+- Campo de búsqueda de empresa con autocompletado (debounce 300 ms, mínimo 3 caracteres).
+- Toggle de **modo agente** para activar la búsqueda web autónoma.
+- Subida de documentos (drag & drop o click): PDF, DOCX, PPTX hasta 25 MB.
+- Chips de búsqueda rápida con ejemplos de empresas.
 
-### 8.2 Selección y Diseño del Modelo
-- Elección de arquitectura: LLMs de propósito general (GPT-4o, Claude 3.5 Sonnet) via LiteLLM como abstracción.
-- Justificación del modelo: capacidad de comprensión contextual y generación de JSON estructurado.
-- Diseño de prompts: prompt engineering sistemático con ejemplos few-shot para filtrado y clasificación.
+### 8.2 Vista del Agente (`AgentSearchView`)
 
-### 8.3 Preparación de Datos
-- Limpieza y normalización de resultados crudos de Google Maps.
-- Construcción de dataset de evaluación con anotación manual para 10 empresas piloto (ground truth).
-- Estrategia de deduplicación por `place_id` y normalización de nombres.
+Interfaz a pantalla completa mientras el agente busca documentos:
+- Animación de robot y contador de tiempo restante.
+- Feed de eventos agrupados por tipo: thinking, searching, found_urls, downloading, accepted, rejected.
+- Contador de documentos encontrados y botón "Saltar" para interrumpir el agente.
 
-### 8.4 Desarrollo e Implementación
-- Prompt versioning en ficheros `.yaml` con control de versiones Git.
-- Pipeline modular y desacoplado: cada paso es independiente y testeable.
-- Paralelismo controlado con semáforos para no superar rate limits de APIs.
+### 8.3 Revisión de Documentos del Agente (`AgentDocumentReviewView`)
 
-### 8.5 Evaluación y Validación
-- Métricas automáticas: precision, recall, F1 sobre dataset de ground truth.
-- Evaluación de confianza: calibración del `confidence_score` vs. acierto real.
-- Evaluación LLM-as-judge: uso de un LLM externo para evaluar calidad de clasificaciones.
-- Análisis de errores: categorización de falsos positivos y falsos negativos.
+Vista de revisión previa al análisis:
+- Grid de tarjetas con previsualización de los documentos encontrados.
+- Toggle drop/keep por documento.
+- Visor de documento integrado con control de páginas y zoom.
+- El usuario confirma qué documentos analizar antes de lanzar el pipeline.
 
-### 8.6 Despliegue y Monitorización
-- Contenerización completa con Docker Compose.
-- Logging estructurado (JSON) de todas las llamadas a LLMs: prompt, respuesta, latencia, coste estimado.
-- Sistema de caché con TTL para evitar llamadas redundantes.
-- Health checks automáticos de todos los servicios.
+### 8.4 Vista de Procesamiento (`ProcessingView`)
 
-### 8.7 Mejora Continua
-- Feedback loop: el usuario puede marcar activos como incorrectos desde el frontend.
-- Los marcajes se almacenan y se usan para refinar los prompts en iteraciones futuras.
-- Registro de versiones de prompts y sus métricas asociadas.
+Pantalla de carga mientras corre el pipeline:
+- Barra de progreso global con porcentaje.
+- Lista de pasos con estado visual: pendiente / en curso (animado) / completado / error.
+- Contador de resultados parciales por paso (ej: "83 ubicaciones encontradas").
+- Botones de reintentar y cancelar.
+
+### 8.5 Vista Principal — Mapa + Sidebar
+
+**Panel lateral izquierdo (`AssetSidebar`):**
+- Nombre de la empresa y resumen: total de activos, desglose por categoría y nivel de confianza.
+- Lista de activos con búsqueda, filtro por categoría, filtro por nivel de confianza y filtro por fuente (`maps_api`, `document_upload`, `agent_search`).
+- Botones de exportación: **CSV** (UTF-8 con BOM para Excel) y **Excel** (.xlsx via SheetJS).
+- Botón "Nueva búsqueda" para volver al inicio.
+
+**Mapa interactivo (`AssetMap`):**
+- Leaflet.js centrado en España con clustering de marcadores.
+- Capas base: OpenStreetMap, satélite, topográfico.
+- Marcadores con icono diferenciado por categoría y color por fuente de datos.
+- Marcadores `LOW` semitransparentes.
+- Click en marcador → popup (`AssetPopup`) con nombre, categoría, dirección, score de confianza (barra visual), tags funcionales y enlace a Google Maps.
+- Leyenda de fuentes de datos visible en el mapa.
 
 ---
 
 ## 9. Estructura del Repositorio
 
 ```
-geoassets-intelligence/
+geoasset-location/
 │
-├── docker-compose.yml
-├── .env.example
+├── docker-compose.yml          # Producción (4 servicios)
+├── dev.docker-compose.yml      # Desarrollo con hot-reload y puertos expuestos
+├── run.sh                      # Script de arranque: --dev | prod | --down
+├── .env.example                # Plantilla de variables
+├── .env.defaults               # Defaults no secretos
+├── .env.secrets_defaults       # Plantilla de secretos (vacía)
 ├── README.md
 │
-├── frontend/                        # Vue 3 + Vite
+├── frontend/
 │   ├── src/
+│   │   ├── App.vue                         # Raíz, gestiona vista activa
+│   │   ├── main.ts
 │   │   ├── components/
-│   │   │   ├── SearchBar.vue
-│   │   │   ├── ProcessingView.vue   # Pantalla de carga con SSE
-│   │   │   ├── AssetMap.vue         # Mapa principal (Leaflet)
-│   │   │   ├── AssetSidebar.vue     # Panel lateral de activos
-│   │   │   └── AssetPopup.vue       # Popup de detalle
+│   │   │   ├── Header.vue                  # Barra superior con info de la plataforma
+│   │   │   ├── SearchBar.vue               # Búsqueda, upload y modo agente
+│   │   │   ├── AgentSearchView.vue         # Feed en tiempo real del agente
+│   │   │   ├── AgentDocumentReviewView.vue # Revisión de documentos del agente
+│   │   │   ├── ProcessingView.vue          # Pantalla de carga del pipeline
+│   │   │   ├── AssetMap.vue                # Mapa Leaflet interactivo
+│   │   │   ├── AssetSidebar.vue            # Panel lateral: lista, filtros, export
+│   │   │   └── AssetPopup.vue              # Popup de detalle de activo
 │   │   ├── stores/
-│   │   │   ├── companies.ts
-│   │   │   └── assets.ts
+│   │   │   └── store.ts                    # Store único Pinia (toda la app)
 │   │   ├── services/
-│   │   │   ├── api.ts               # Cliente HTTP
-│   │   │   └── sse.ts               # Cliente SSE
-│   │   └── views/
-│   │       ├── HomeView.vue
-│   │       └── AnalysisView.vue
-│   └── Dockerfile
+│   │   │   └── backend.ts                  # Cliente Axios + SSE al backend
+│   │   ├── types/
+│   │   │   └── types.ts                    # Tipos TypeScript (Asset, Company, etc.)
+│   │   ├── plugins/
+│   │   │   └── vuetify.ts                  # Configuración Vuetify
+│   │   └── styles/
+│   ├── Dockerfile                          # Build Bun → Nginx
+│   ├── dev.Dockerfile                      # Dev con hot-reload Bun
+│   └── nginx.conf                          # Reverse proxy + SPA fallback
 │
-├── backend/                         # FastAPI
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── api/
-│   │   │   ├── companies.py
-│   │   │   ├── assets.py
-│   │   │   └── stream.py
-│   │   ├── pipeline/
-│   │   │   ├── orchestrator.py      # Coordinador del pipeline
-│   │   │   ├── steps/
-│   │   │   │   ├── step0_identify.py
-│   │   │   │   ├── step1_maps.py
-│   │   │   │   ├── step2_llm_filter.py
-│   │   │   │   ├── step3_enrich.py
-│   │   │   │   └── step4_scoring.py
-│   │   │   └── models.py            # Pydantic models
-│   │   ├── prompts/                 # Prompts versionados
-│   │   │   ├── v1/
-│   │   │   │   ├── filter_assets.yaml
-│   │   │   │   └── classify_asset.yaml
-│   │   │   └── v2/
-│   │   ├── services/
-│   │   │   ├── google_maps.py
-│   │   │   ├── llm_client.py        # Wrapper LiteLLM
-│   │   │   └── cache.py             # Redis client
-│   │   └── db/
-│   │       ├── models.py            # SQLAlchemy + PostGIS
-│   │       └── migrations/
-│   ├── tests/
-│   │   ├── test_pipeline.py
-│   │   ├── test_scoring.py
-│   │   └── evaluation/
-│   │       └── ground_truth.json
-│   └── Dockerfile
-│
-└── docs/
-    ├── documentacion_funcional_tecnica.md   # Este documento
-    └── evaluation_results/
+└── backend/
+    ├── app/
+    │   ├── main.py                         # FastAPI app, routers, CORS, lifecycle
+    │   ├── api/
+    │   │   ├── companies.py                # GET /api/v1/companies/search
+    │   │   ├── assets.py                   # POST + GET /api/v1/assets/...
+    │   │   ├── documents.py                # POST /api/v1/documents/analyze
+    │   │   └── agent.py                    # POST + GET /api/v1/agent/...
+    │   ├── pipeline/
+    │   │   ├── orchestrator.py             # Coordinador pipeline Maps
+    │   │   ├── doc_orchestrator.py         # Coordinador pipeline Documento
+    │   │   ├── agent_orchestrator.py       # Coordinador pipeline Agente
+    │   │   ├── models.py                   # Modelos Pydantic del pipeline
+    │   │   └── steps/
+    │   │       ├── step0_identify.py
+    │   │       ├── step1_maps.py
+    │   │       ├── step2_llm_filter.py
+    │   │       ├── step3_enrich.py
+    │   │       ├── step4_scoring.py
+    │   │       ├── doc_step0_parse.py
+    │   │       ├── doc_step1_chunk.py
+    │   │       ├── doc_step2_extract.py
+    │   │       ├── doc_step3_dedup.py
+    │   │       ├── doc_step4_geocode.py
+    │   │       └── doc_step5_scoring.py
+    │   ├── prompts/v1/
+    │   │   ├── filter_assets.yaml          # Paso 2 Maps: filtrado y clasificación
+    │   │   ├── enrich_asset.yaml           # Paso 3 Maps: enriquecimiento
+    │   │   ├── extract_doc_assets.yaml     # Paso D2: extracción de activos de doc
+    │   │   └── geocode_assets.yaml         # Paso D4: geocodificación por LLM
+    │   ├── services/
+    │   │   ├── google_maps.py              # Google Places + Geocoding API
+    │   │   ├── llm_client.py              # Wrapper LiteLLM con semáforo
+    │   │   ├── cache.py                    # Redis client
+    │   │   ├── document_parser.py          # Docling: parse + chunking
+    │   │   └── agent_search.py             # CrewAI + DuckDuckGo MCP
+    │   ├── db/
+    │   │   ├── models.py                   # SQLAlchemy ORM (AssetRecord, CompanyRecord)
+    │   │   └── session.py                  # Sesión async PostgreSQL
+    │   └── core/
+    │       ├── config.py                   # Settings (Pydantic BaseSettings)
+    │       └── paths.py                    # Carga de .env files
+    ├── tests/
+    │   └── conftest.py                     # Setup pytest, marker --llm
+    ├── entrypoint.sh                       # uvicorn (dev) / gunicorn (prod)
+    ├── Dockerfile
+    ├── dev.Dockerfile
+    └── pyproject.toml
 ```
 
 ---
 
 ## 10. Variables de Entorno
 
-```env
-# APIs externas
-GOOGLE_MAPS_API_KEY=...
-OPENAI_API_KEY=...
-ANTHROPIC_API_KEY=...
+### Secretos — requieren valor real (`.env.secrets`)
 
-# LiteLLM
-LITELLM_MODEL=gpt-4o                 # Modelo por defecto
-LITELLM_FALLBACK_MODEL=claude-3-5-sonnet-20241022
-AGENT_LITELLM_MODEL=bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0
-AGENT_LITELLM_FALLBACK_MODEL=
+```env
+GOOGLE_MAPS_API_KEY=          # Google Maps Places API v2 + Geocoding API
+AWS_ACCESS_KEY_ID=            # Acceso a AWS Bedrock (LLMs)
+AWS_SECRET_ACCESS_KEY=        # Acceso a AWS Bedrock (LLMs)
+AWS_REGION_NAME=eu-west-1     # Región Bedrock
+```
+
+### Configuración — valores por defecto funcionales (`.env.defaults`)
+
+```env
+# Modelos LLM (via LiteLLM + AWS Bedrock)
+LITELLM_MODEL=bedrock/openai.gpt-oss-120b-1:0
+LITELLM_FALLBACK_MODEL=
 PIPELINE_LITELLM_MODEL=bedrock/openai.gpt-oss-120b-1:0
 PIPELINE_LITELLM_FALLBACK_MODEL=
-LITELLM_MAX_WORKERS=5                # Workers paralelos máximos
-LITELLM_TIMEOUT=30                   # Timeout por llamada (s)
+AGENT_LITELLM_MODEL=bedrock/eu.anthropic.claude-haiku-4-5-20251001-v1:0
+AGENT_LITELLM_FALLBACK_MODEL=
+LITELLM_MAX_WORKERS=5
+LITELLM_TIMEOUT=30
 
-# Base de datos
-POSTGRES_HOST=postgres
+# Base de datos PostgreSQL
 POSTGRES_DB=geoassets
 POSTGRES_USER=geoassets
-POSTGRES_PASSWORD=...
+POSTGRES_PASSWORD=geoassets
 
 # Redis
-REDIS_HOST=redis
-REDIS_TTL_SECONDS=86400              # 24h caché por empresa
+REDIS_TTL_SECONDS=86400       # 24h de caché por empresa
 
-# Configuración de pipeline
-MAPS_CITIES_COVERAGE=madrid,barcelona,valencia,sevilla,zaragoza,bilbao,malaga,murcia,palma,las-palmas
+# Pipeline Maps
+MAPS_MAX_QUERY_BUDGET=50
+MAPS_MAX_RESULTS_PER_QUERY=20
+MAPS_KEYWORDS_PER_CATEGORY=8
+MAPS_MAX_CONCURRENT_REQUESTS=10
+
+# Pipeline Documento
+UPLOAD_MAX_SIZE_MB=25
+DOC_EXTRACTION_MAX_CONCURRENCY=8
+DOC_GEOCODE_MAX_CONCURRENCY=8
+DOCLING_NUM_THREADS=4
+DOCLING_PDF_OCR=false         # OCR para PDFs imagen (más lento)
+
+# Pipeline Agente
+AGENT_MAX_DURATION_SECONDS=120
+AGENT_MAX_FILES=5
+AGENT_MAX_ITERATIONS=15
+
+# Scoring
 CONFIDENCE_THRESHOLD_HIGH=0.65
 CONFIDENCE_THRESHOLD_MEDIUM=0.35
+
+# Servidor
+BACKEND_DEBUG=false
+BACKEND_NUM_WORKERS=1
 ```
 
 ---
 
-## 11. Limitaciones Conocidas y Consideraciones
+## 11. Puesta en Marcha
 
-1. **Cobertura de Google Maps:** Google Maps no garantiza la indexación completa de activos industriales o logísticos en zonas rurales. Empresas de sectores primarios o con activos muy dispersos pueden tener cobertura inferior.
+### Requisitos previos
 
-2. **Rate limits:** La Google Maps Places API tiene cuotas por proyecto. Para análisis de muchas empresas consecutivas se recomienda implementar cola de trabajos con Celery.
+- Docker + Docker Compose
+- Credenciales de Google Maps API (Places + Geocoding activadas)
+- Credenciales AWS con acceso a Bedrock en `eu-west-1`
 
-3. **Alucinaciones LLM:** Los LLMs pueden clasificar incorrectamente lugares ambiguos. El sistema de scoring de confianza mitiga esto, pero no lo elimina. Se recomienda revisión humana para activos con confianza baja.
+### Con Docker (recomendado)
 
-4. **Actualización de datos:** Los resultados se cachean 24 horas. Empresas en reestructuración activa pueden tener datos desfasados; usar `force_refresh=true` para actualizaciones críticas.
+```bash
+# 1. Copiar plantilla de secretos y rellenar con valores reales
+cp .env.secrets_defaults .env.secrets
+# Editar .env.secrets con GOOGLE_MAPS_API_KEY, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 
-5. **Empresas pequeñas o sin presencia digital:** El sistema está optimizado para empresas con presencia verificable en Google Maps. Microempresas o negocios sin perfil de Google Business pueden no aparecer.
+# 2. Arrancar (producción)
+./run.sh
 
-6. **Coste de API:** Cada análisis completo genera entre 50–200 llamadas a Google Maps y 10–30 llamadas a LLMs. Se recomienda monitorizar el coste por empresa para proyectos de escala.
+# 3. Arrancar (desarrollo, hot-reload, puertos expuestos)
+./run.sh --dev
+
+# 4. Parar
+./run.sh --down
+```
+
+**Accesos:**
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000` (solo en modo dev)
+- Swagger docs: `http://localhost:8000/docs` (solo en modo dev)
+
+### Desarrollo sin Docker (backend)
+
+```bash
+cd backend
+uv sync
+BACKEND_DEBUG=true uv run uvicorn app.main:app --reload
+```
+
+### Desarrollo sin Docker (frontend)
+
+```bash
+cd frontend
+bun install
+bun run dev        # Dev server en http://localhost:3000
+```
 
 ---
 
-*Documento vivo — versión 1.0 · Abril 2025*
+## 12. Ciclo de Vida del Desarrollo de IA Generativa
+
+En cumplimiento de los requisitos del TFM, el proyecto sigue las fases establecidas del ciclo de vida de IA generativa:
+
+### 12.1 Definición del Problema y Casos de Uso
+- Identificación de la tarea: extracción y estructuración de información geoespacial empresarial desde tres fuentes heterogéneas.
+- Definición de métricas de éxito: precision/recall de activos identificados vs. ground truth manual.
+- Establecimiento de criterios de calidad mínimos por caso de uso y fuente.
+
+### 12.2 Selección y Diseño del Modelo
+- LLMs de propósito general vía AWS Bedrock (GPT-oss-120b para filtrado/enriquecimiento, Claude Haiku para el agente).
+- Abstracción multi-proveedor vía LiteLLM para desacoplamiento del modelo concreto.
+- Diseño de prompts: prompt engineering con esquema JSON estricto, ejemplos few-shot y versioning en `.yaml`.
+- Agente autónomo con CrewAI + herramientas especializadas (búsqueda web + descarga validada).
+
+### 12.3 Preparación de Datos
+- Limpieza y normalización de resultados crudos de Google Maps (deduplicación por `place_id`).
+- Deduplicación cross-chunk en el pipeline de documentos (nombre, dirección, coordenadas).
+- Validación de relevancia de documentos en el agente (nombre empresa + densidad de keywords).
+
+### 12.4 Desarrollo e Implementación
+- Prompt versioning en ficheros `.yaml` bajo `app/prompts/v1/`.
+- Tres pipelines modulares e independientes: cada paso es testeable aisladamente.
+- Paralelismo controlado con semáforos para no superar rate limits de APIs externas.
+- Streaming SSE en todos los pipelines para retroalimentación en tiempo real al usuario.
+
+### 12.5 Evaluación y Validación
+- Métricas automáticas: precision, recall, F1 sobre dataset de ground truth.
+- Evaluación del score de confianza: calibración del `confidence_score` vs. acierto real.
+- Tests con pytest; tests de integración LLM marcados con `@pytest.mark.llm` y activables con `--llm`.
+
+### 12.6 Despliegue y Monitorización
+- Contenerización completa con Docker Compose (4 servicios).
+- Build automatizado con AWS CodeBuild.
+- Caché Redis con TTL configurable por empresa (evita recómputo en accesos repetidos).
+- Health checks automáticos de PostgreSQL y Redis antes de arrancar el backend.
+
+### 12.7 Mejora Continua
+- Registro de versiones de prompts con control de versiones Git.
+- Parámetros de scoring y umbrales de confianza configurables vía variables de entorno sin redeployment.
+- Tres fuentes de datos combinables para aumentar cobertura en empresas con poca presencia digital.
+
+---
+
+## 13. Limitaciones Conocidas y Consideraciones
+
+1. **Cobertura de Google Maps:** Google Maps no garantiza la indexación completa de activos industriales o logísticos en zonas rurales. Empresas de sectores primarios o con activos muy dispersos pueden tener cobertura inferior.
+
+2. **Rate limits:** La Google Maps Places API tiene cuotas por proyecto. Para análisis de muchas empresas consecutivas se recomienda implementar cola de trabajos.
+
+3. **Alucinaciones LLM:** Los LLMs pueden clasificar incorrectamente lugares ambiguos o extraer activos inexistentes de documentos. El score de confianza mitiga esto, pero no lo elimina. Se recomienda revisión humana para activos con confianza LOW.
+
+4. **Geocodificación por defecto:** Activos extraídos de documentos sin información de localización suficiente se asignan a Madrid (40.4168, -3.7038) como fallback, con `coordinate_source: "default"` y score reducido.
+
+5. **Actualización de datos:** Los resultados se cachean 24 horas por defecto. Usar `force_refresh: true` para forzar un nuevo análisis.
+
+6. **Empresas sin presencia digital:** El pipeline Maps está optimizado para empresas con perfil en Google Business. Microempresas sin presencia verificable pueden no aparecer; el pipeline de documentos es más adecuado en esos casos.
+
+7. **Coste de API:** Cada análisis completo genera entre 50–200 llamadas a Google Maps y 10–30 llamadas a LLMs. El pipeline de documento genera llamadas adicionales a LLM por chunk. Se recomienda monitorizar el coste por empresa en producción.
+
+8. **Documentos del agente:** El agente usa DuckDuckGo vía MCP server con límite de 1 req/s y fallback a Bing scraping. La disponibilidad de documentos públicos varía según la empresa. El timeout de 120 s puede interrumpir búsquedas de empresas con poca presencia online.
+
+---
+
+*Documento actualizado — versión 2.0 · Mayo 2026*
