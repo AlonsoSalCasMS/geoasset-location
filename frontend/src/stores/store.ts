@@ -8,6 +8,8 @@ import type {
   AnalysisMode,
   AgentFile,
   AgentEvent,
+  EsgAnalysis,
+  EsgReport,
 } from '@/types/types';
 import { CATEGORY_TO_SUPER, SUPER_TO_CATEGORIES } from '@/types/types';
 
@@ -32,6 +34,11 @@ export interface AppState {
   agentFiles: AgentFile[];
   agentEvents: AgentEvent[];
   agentSessionId: string | null;
+  // ESG state
+  esgAnalysis: EsgAnalysis | null;
+  esgReport: EsgReport | null;
+  esgLoading: boolean;
+  esgError: string | null;
 }
 
 export const useAppStore = defineStore('app', {
@@ -55,6 +62,10 @@ export const useAppStore = defineStore('app', {
     agentFiles: [],
     agentEvents: [],
     agentSessionId: null,
+    esgAnalysis: null,
+    esgReport: null,
+    esgLoading: false,
+    esgError: null,
   }),
   getters: {
     filteredAssets(state): Asset[] {
@@ -182,6 +193,23 @@ export const useAppStore = defineStore('app', {
     },
     clearAgentEvents() {
       this.agentEvents = [];
+    },
+    setEsgAnalysis(data: EsgAnalysis) {
+      this.esgAnalysis = data;
+    },
+    setEsgReport(data: EsgReport) {
+      this.esgReport = data;
+    },
+    setEsgLoading(val: boolean) {
+      this.esgLoading = val;
+    },
+    setEsgError(msg: string | null) {
+      this.esgError = msg;
+    },
+    clearEsg() {
+      this.esgAnalysis = null;
+      this.esgReport = null;
+      this.esgError = null;
     },
   },
 });

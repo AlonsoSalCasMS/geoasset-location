@@ -165,6 +165,16 @@
 
     <!-- Footer actions -->
     <div class="pa-3 sidebar-footer d-flex flex-column ga-2">
+      <v-btn
+        size="small"
+        variant="flat"
+        color="success"
+        prepend-icon="mdi-leaf"
+        class="esg-btn"
+        @click="goToEsg"
+      >
+        Análisis ESG
+      </v-btn>
       <div class="d-flex ga-2">
         <v-btn size="small" variant="tonal" color="primary" prepend-icon="mdi-download" @click="exportCSV"> CSV </v-btn>
         <v-btn size="small" variant="tonal" color="success" prepend-icon="mdi-microsoft-excel" @click="exportExcel">
@@ -295,6 +305,11 @@ const backToSearch = () => {
   store.resetAnalysis();
   store.setView('search');
 };
+
+const goToEsg = () => {
+  store.clearEsg();
+  store.setView('esg');
+};
 </script>
 
 <style scoped>
@@ -357,5 +372,10 @@ const backToSearch = () => {
 .sidebar-footer {
   border-top: 1px solid rgba(118, 148, 203, 0.2);
   background: rgba(249, 252, 255, 0.94);
+}
+
+.esg-btn {
+  letter-spacing: 0.03em;
+  font-weight: 600;
 }
 </style>

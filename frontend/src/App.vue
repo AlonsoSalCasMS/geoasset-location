@@ -2,7 +2,7 @@
   <v-app>
     <v-layout class="app-shell">
       <Header />
-      <v-main :class="['app-main', { 'app-main--fullbleed': store.currentView === 'search' || store.currentView === 'agent' || store.currentView === 'agent_review' || store.currentView === 'processing' }]">
+      <v-main :class="['app-main', { 'app-main--fullbleed': store.currentView === 'search' || store.currentView === 'agent' || store.currentView === 'agent_review' || store.currentView === 'processing' || store.currentView === 'esg' || store.currentView === 'report' }]">
         <SearchBar v-if="store.currentView === 'search'" />
         <AgentSearchView v-else-if="store.currentView === 'agent'" />
         <AgentDocumentReviewView v-else-if="store.currentView === 'agent_review'" />
@@ -17,6 +17,8 @@
             </div>
           </div>
         </section>
+        <EsgAnalysisView v-else-if="store.currentView === 'esg'" />
+        <EsgReportView v-else-if="store.currentView === 'report'" />
       </v-main>
     </v-layout>
   </v-app>
@@ -32,6 +34,8 @@ import AgentDocumentReviewView from '@/components/AgentDocumentReviewView.vue';
 import ProcessingView from '@/components/ProcessingView.vue';
 import AssetSidebar from '@/components/AssetSidebar.vue';
 import AssetMap from '@/components/AssetMap.vue';
+import EsgAnalysisView from '@/components/EsgAnalysisView.vue';
+import EsgReportView from '@/components/EsgReportView.vue';
 import type { Asset } from '@/types/types';
 
 const store = useAppStore();
@@ -83,7 +87,9 @@ html {
 .app-main--fullbleed .search-page,
 .app-main--fullbleed .agent-page,
 .app-main--fullbleed .agent-review-page,
-.app-main--fullbleed .processing-page {
+.app-main--fullbleed .processing-page,
+.app-main--fullbleed .esg-page,
+.app-main--fullbleed .report-page {
   box-sizing: border-box;
   padding-top: var(--topbar-height);
 }

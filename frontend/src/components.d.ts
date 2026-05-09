@@ -12,6 +12,8 @@ declare module 'vue' {
     AssetMap: typeof import('./components/AssetMap.vue')['default']
     AssetPopup: typeof import('./components/AssetPopup.vue')['default']
     AssetSidebar: typeof import('./components/AssetSidebar.vue')['default']
+    EsgAnalysisView: typeof import('./components/EsgAnalysisView.vue')['default']
+    EsgReportView: typeof import('./components/EsgReportView.vue')['default']
     Header: typeof import('./components/Header.vue')['default']
     Main: typeof import('./components/Main.vue')['default']
     ProcessingView: typeof import('./components/ProcessingView.vue')['default']

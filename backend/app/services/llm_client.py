@@ -21,18 +21,19 @@ def get_semaphore() -> asyncio.Semaphore:
     return _semaphore
 
 
-async def llm_completion(messages: list, temperature: float = 0.1, max_tokens: int = 4096) -> Optional[str]:
+async def llm_completion(messages: list, temperature: float = 0.1, max_tokens: int = 4096, timeout: Optional[int] = None) -> Optional[str]:
     sem = get_semaphore()
     async with sem:
         model = settings.PIPELINE_LITELLM_MODEL
         fallback_model = settings.PIPELINE_LITELLM_FALLBACK_MODEL
+        effective_timeout = timeout if timeout is not None else settings.LITELLM_TIMEOUT
         try:
             response = await litellm.acompletion(
                 model=model,
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                timeout=settings.LITELLM_TIMEOUT,
+                timeout=effective_timeout,
                 aws_region_name=settings.AWS_REGION_NAME,
                 response_format={"type": "json_object"},
             )
@@ -46,7 +47,7 @@ async def llm_completion(messages: list, temperature: float = 0.1, max_tokens: i
                         messages=messages,
                         temperature=temperature,
                         max_tokens=max_tokens,
-                        timeout=settings.LITELLM_TIMEOUT,
+                        timeout=effective_timeout,
                         aws_region_name=settings.AWS_REGION_NAME,
                     )
                     return response.choices[0].message.content
@@ -55,8 +56,8 @@ async def llm_completion(messages: list, temperature: float = 0.1, max_tokens: i
             return None
 
 
-async def llm_json(messages: list, temperature: float = 0.1) -> Optional[dict]:
-    content = await llm_completion(messages, temperature=temperature)
+async def llm_json(messages: list, temperature: float = 0.1, timeout: Optional[int] = None, max_tokens: int = 4096) -> Optional[dict]:
+    content = await llm_completion(messages, temperature=temperature, timeout=timeout, max_tokens=max_tokens)
     if not content:
         return None
     try:

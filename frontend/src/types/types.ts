@@ -181,7 +181,93 @@ export type AssetSource = 'maps_api' | 'document_upload' | 'agent_search'
 
 export type AnalysisMode = 'search' | 'document' | 'combined'
 
-export type AppView = 'search' | 'agent' | 'agent_review' | 'processing' | 'results'
+export type AppView = 'search' | 'agent' | 'agent_review' | 'processing' | 'results' | 'esg' | 'report'
+
+// ── ESG Analysis types ───────────────────────────────────────────
+export interface EsgScoreDimension {
+  score: number
+  weight: number
+}
+
+export interface EsgAssetRisk {
+  asset_id: string
+  asset_name: string
+  category: string
+  province: string
+  water_stress: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH'
+  flood_risk: 'LOW' | 'MEDIUM' | 'HIGH'
+  heat_risk: 'LOW' | 'MEDIUM' | 'HIGH'
+  wildfire_risk: 'LOW' | 'MEDIUM' | 'HIGH'
+  composite_risk_score: number
+  risk_tier: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  primary_risk: string
+  regulatory_exposure: string
+}
+
+export interface EsgProvinceSummary {
+  province: string
+  asset_count: number
+  avg_risk: number
+  dominant_risk: string
+}
+
+export interface EsgInsight {
+  type: 'risk' | 'opportunity' | 'regulatory' | 'info'
+  title: string
+  detail: string
+}
+
+export interface EsgAnalysis {
+  overall_score: number
+  grade: string
+  scores: {
+    physical_risk: EsgScoreDimension
+    environmental_impact: EsgScoreDimension
+    regulatory_transition: EsgScoreDimension
+    resilience: EsgScoreDimension
+  }
+  asset_risks: EsgAssetRisk[]
+  province_summary: EsgProvinceSummary[]
+  csrd_readiness: {
+    score: number
+    status: string
+    esrs_e1: { status: string; key_gap: string }
+    esrs_e3: { status: string; key_gap: string }
+    esrs_e4: { status: string; key_gap: string }
+  }
+  eu_taxonomy: {
+    alignment_pct: number
+    aligned_categories: string[]
+    dnsh_bottleneck: string
+  }
+  sfdr_pai: {
+    pai_7_score: number
+    pai_8_score: number
+    pai_14_score: number
+    summary: string
+  }
+  key_insights: EsgInsight[]
+  concentration_risk: {
+    top_province: string
+    hhi_index: number
+    concentration_level: string
+  }
+  carbon_exposure: {
+    high_emission_asset_pct: number
+    transition_risk_level: string
+  }
+  executive_summary: string
+}
+
+export interface EsgReport {
+  report_title: string
+  executive_summary: string
+  key_findings: string[]
+  top_risks: Array<{ rank: number; title: string; description: string; mitigation: string }>
+  recommendations: Array<{ priority: string; area: string; action: string; timeline: string }>
+  regulatory_roadmap: string
+  conclusion: string
+}
 
 export interface AgentFile {
   filename: string

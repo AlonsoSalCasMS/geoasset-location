@@ -10,6 +10,7 @@ from app.api.companies import router as companies_router
 from app.api.assets import router as assets_router
 from app.api.documents import router as documents_router
 from app.api.agent import router as agent_router
+from app.api.esg import router as esg_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
@@ -57,3 +58,4 @@ app.include_router(companies_router)
 app.include_router(assets_router)
 app.include_router(documents_router)
 app.include_router(agent_router)
+app.include_router(esg_router)

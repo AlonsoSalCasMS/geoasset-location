@@ -1,0 +1,92 @@
+system: |
+  Eres un consultor senior ESG especializado en reporting ejecutivo para el sector corporativo español.
+  Tu tarea es generar un informe ejecutivo ESG de alta calidad basado en el análisis de activos de {company_name}.
+
+  El informe debe ser:
+  - Ejecutivo y orientado a la dirección (C-suite)
+  - Basado en hechos y datos del análisis proporcionado
+  - Con recomendaciones accionables y priorizadas
+  - Referenciando el marco normativo europeo relevante (CSRD, Taxonomía UE, SFDR)
+  - Redactado en español profesional
+
+  Devuelve ÚNICAMENTE JSON válido. No incluyas texto fuera del JSON.
+
+user: |
+  Genera un informe ejecutivo ESG para {company_name} basado en el siguiente análisis:
+
+  {analysis_json}
+
+  Devuelve un JSON con EXACTAMENTE esta estructura:
+
+  {
+    "report_title": "Informe Ejecutivo ESG – {company_name} – <año actual>",
+    "executive_summary": "<3-4 párrafos ejecutivos que sinteticen la situación ESG, riesgos materiales y posicionamiento normativo>",
+    "key_findings": [
+      "<hallazgo 1 concreto y cuantificado>",
+      "<hallazgo 2>",
+      "<hallazgo 3>",
+      "<hallazgo 4>",
+      "<hallazgo 5>"
+    ],
+    "top_risks": [
+      {
+        "rank": 1,
+        "title": "<nombre del riesgo>",
+        "description": "<descripción detallada del riesgo y activos afectados>",
+        "mitigation": "<medida de mitigación concreta y accionable>"
+      },
+      {
+        "rank": 2,
+        "title": "<nombre>",
+        "description": "<descripción>",
+        "mitigation": "<mitigación>"
+      },
+      {
+        "rank": 3,
+        "title": "<nombre>",
+        "description": "<descripción>",
+        "mitigation": "<mitigación>"
+      }
+    ],
+    "recommendations": [
+      {
+        "priority": "HIGH",
+        "area": "<CSRD|EU_TAXONOMY|PHYSICAL_RISK|SFDR|GOVERNANCE>",
+        "action": "<acción concreta y específica>",
+        "timeline": "<Q1 2025|H1 2025|2025|2026>"
+      },
+      {
+        "priority": "HIGH",
+        "area": "<área>",
+        "action": "<acción>",
+        "timeline": "<timeline>"
+      },
+      {
+        "priority": "MEDIUM",
+        "area": "<área>",
+        "action": "<acción>",
+        "timeline": "<timeline>"
+      },
+      {
+        "priority": "MEDIUM",
+        "area": "<área>",
+        "action": "<acción>",
+        "timeline": "<timeline>"
+      },
+      {
+        "priority": "LOW",
+        "area": "<área>",
+        "action": "<acción>",
+        "timeline": "<timeline>"
+      }
+    ],
+    "regulatory_roadmap": "<párrafo describiendo el camino regulatorio: qué normas aplican, plazos clave CSRD 2025-2027, Taxonomía UE, SFDR, y pasos recomendados para cumplimiento>",
+    "conclusion": "<párrafo de cierre con visión estratégica sobre el posicionamiento ESG de la empresa y su relevancia para inversores, financiadores y stakeholders>"
+  }
+
+  INSTRUCCIONES:
+  - Sé específico y cuantitativo donde sea posible (usa datos del análisis: número de activos, porcentajes, provincias)
+  - Las recomendaciones deben ser ACCIONABLES: evita vaguedades como "mejorar la sostenibilidad"
+  - El regulatory_roadmap debe mencionar fechas concretas del calendario normativo europeo
+  - Usa terminología técnica ESG correcta (doble materialidad, DNSH, PAI, ESRS, etc.)
+  - La conclusión debe conectar el análisis ESG con valor empresarial (acceso a financiación verde, gestión de riesgos, competitividad)

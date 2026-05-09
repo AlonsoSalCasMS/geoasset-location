@@ -1,6 +1,6 @@
 import constants from '@/utils/const';
 import axios from 'axios';
-import type { AgentFile } from '@/types/types';
+import type { AgentFile, Asset, EsgAnalysis, EsgReport } from '@/types/types';
 
 export interface AgentDocumentMetadata {
   filename: string
@@ -202,6 +202,36 @@ export const startAgentDocumentAnalysisSSE = (
     });
 
   return controller;
+};
+
+export const analyzeEsg = async (companyName: string, assets: Asset[]): Promise<EsgAnalysis> => {
+  const payload = {
+    company_name: companyName,
+    assets: assets.map((a) => ({
+      id: a.id,
+      name: a.name,
+      category: a.category,
+      super_category: a.super_category ?? null,
+      province: a.province,
+      autonomous_community: a.autonomous_community,
+      municipality: a.municipality,
+      latitude: a.latitude,
+      longitude: a.longitude,
+      address: a.address,
+      confidence_score: a.confidence_score,
+      data_sources: a.data_sources,
+    })),
+  };
+  const resp = await axios.post(getEndpoint('/api/v1/esg/analyze'), payload);
+  return resp.data as EsgAnalysis;
+};
+
+export const generateEsgReport = async (companyName: string, analysis: EsgAnalysis): Promise<EsgReport> => {
+  const resp = await axios.post(getEndpoint('/api/v1/esg/report'), {
+    company_name: companyName,
+    analysis,
+  });
+  return resp.data as EsgReport;
 };
 
 /**
